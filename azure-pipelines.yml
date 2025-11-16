@@ -1,0 +1,28 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+
+- script: |
+    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+    sudo apt-get install -y ansible
+    curl -sLo terraform.zip https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+    unzip terraform.zip
+    sudo mv terraform /usr/local/bin/
+  displayName: 'Install dependencies'
+
+- script: |
+    az login --service-principal -u $(azureServicePrincipalUsername) -p $(azureServicePrincipalPassword) --tenant $(azureTenant)
+    terraform init
+    terraform apply -auto-approve
+  displayName: 'Terraform Apply'
+
+- script: |
+    ansible-playbook -i inventory.ini setup_vm.yml
+  displayName: 'Ansible Playbook'
