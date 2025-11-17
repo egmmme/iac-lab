@@ -129,6 +129,21 @@ resource "azurerm_linux_virtual_machine" "lab_vm" {
   }
 }
 
+# VM Extension to ensure cloud-init completes
+resource "azurerm_virtual_machine_extension" "cloud_init_wait" {
+  name                 = "wait-for-cloud-init"
+  virtual_machine_id   = azurerm_linux_virtual_machine.lab_vm.id
+  publisher            = "Microsoft.Azure.Extensions"
+  type                 = "CustomScript"
+  type_handler_version = "2.1"
+
+  settings = jsonencode({
+    commandToExecute = "cloud-init status --wait && systemctl status ssh"
+  })
+
+  depends_on = [azurerm_linux_virtual_machine.lab_vm]
+}
+
 # Output the public IP
 output "vm_public_ip" {
   value = azurerm_public_ip.lab_public_ip.ip_address

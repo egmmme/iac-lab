@@ -66,14 +66,32 @@ steps:
       echo "Generated inventory.ini:"
       cat inventory.ini
 
-      # Wait for VM to be ready for SSH
-      echo "Waiting for VM to be ready..."
-      sleep 90
+      # Wait for VM to be ready for SSH with retry logic
+      echo "Waiting for VM to be ready for SSH..."
+      MAX_RETRIES=20
+      RETRY_COUNT=0
 
-      # Test SSH connectivity
-      echo "Testing SSH connectivity..."
-      ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa azureuser@$(VM_PUBLIC_IP) "echo 'SSH connection successful'"
+      while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES: Testing SSH connectivity..."
+        if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa azureuser@$(VM_PUBLIC_IP) "echo 'SSH connection successful'" 2>/dev/null; then
+          echo "SSH connection established!"
+          break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+          echo "SSH not ready yet, waiting 15 seconds..."
+          sleep 15
+        fi
+      done
+
+      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        echo "ERROR: Failed to connect to VM after $MAX_RETRIES attempts"
+        echo "Checking VM provisioning state..."
+        az vm get-instance-view --resource-group lab-resource-group --name lab-vm --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
+        exit 1
+      fi
 
       # Run Ansible playbook
+      echo "Running Ansible playbook..."
       ansible-playbook -i inventory.ini setup_vm.yml -v
     displayName: "Ansible Playbook"
