@@ -2,8 +2,18 @@
 # TERRAFORM - Infraestructura como Código
 # Propósito: Crear recursos de Azure (VM, red, IPs)
 # ===================================================================
+# Buenas prácticas aplicadas:
+# ✓ Versiones fijadas de providers
+# ✓ Variables parametrizables (ver variables.tf)
+# ✓ Outputs documentados (ver outputs.tf)
+# ✓ Tags consistentes para trazabilidad
+# ✓ Validación (terraform validate)
+# ✓ Formateo (terraform fmt)
+# ===================================================================
 
 terraform {
+  required_version = ">= 1.6.0"
+  
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -13,32 +23,32 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
-}
-
-# Variable para clave SSH pública (generada en pipeline)
-variable "ssh_public_key" {
-  description = "SSH public key for VM access"
-  type        = string
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
 }
 
 # Grupo de Recursos
 resource "azurerm_resource_group" "demo" {
-  name     = "rg-terraform-ansible-demo"
-  location = "West Europe"
+  name     = var.resource_group_name
+  location = var.location
+  tags     = var.tags
 }
 
 # Red Virtual
 resource "azurerm_virtual_network" "demo" {
-  name                = "vnet-demo"
+  name                = "vnet-${var.environment}"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.demo.location
   resource_group_name = azurerm_resource_group.demo.name
+  tags                = var.tags
 }
 
 # Subred
 resource "azurerm_subnet" "demo" {
-  name                 = "subnet-demo"
+  name                 = "subnet-${var.environment}"
   resource_group_name  = azurerm_resource_group.demo.name
   virtual_network_name = azurerm_virtual_network.demo.name
   address_prefixes     = ["10.0.1.0/24"]
@@ -46,32 +56,35 @@ resource "azurerm_subnet" "demo" {
 
 # IP Pública
 resource "azurerm_public_ip" "demo" {
-  name                = "pip-demo"
+  name                = "pip-${var.environment}"
   location            = azurerm_resource_group.demo.location
   resource_group_name = azurerm_resource_group.demo.name
   allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = var.tags
 }
 
-# Network Security Group (permite SSH y HTTP)
+# Network Security Group
 resource "azurerm_network_security_group" "demo" {
-  name                = "nsg-demo"
+  name                = "nsg-${var.environment}"
   location            = azurerm_resource_group.demo.location
   resource_group_name = azurerm_resource_group.demo.name
+  tags                = var.tags
 
   security_rule {
-    name                       = "SSH"
+    name                       = "AllowSSH"
     priority                   = 1001
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*"
+    source_address_prefix      = "*"  # Buena práctica: restringir a IPs específicas en producción
     destination_address_prefix = "*"
   }
 
   security_rule {
-    name                       = "HTTP"
+    name                       = "AllowHTTP"
     priority                   = 1002
     direction                  = "Inbound"
     access                     = "Allow"
@@ -85,9 +98,10 @@ resource "azurerm_network_security_group" "demo" {
 
 # Network Interface
 resource "azurerm_network_interface" "demo" {
-  name                = "nic-demo"
+  name                = "nic-${var.environment}"
   location            = azurerm_resource_group.demo.location
   resource_group_name = azurerm_resource_group.demo.name
+  tags                = var.tags
 
   ip_configuration {
     name                          = "internal"
@@ -105,22 +119,24 @@ resource "azurerm_network_interface_security_group_association" "demo" {
 
 # Máquina Virtual Linux
 resource "azurerm_linux_virtual_machine" "demo" {
-  name                = "vm-demo"
+  name                = "vm-${var.environment}"
   resource_group_name = azurerm_resource_group.demo.name
   location            = azurerm_resource_group.demo.location
-  size                = "Standard_B1s"
-  admin_username      = "azureuser"
+  size                = var.vm_size
+  admin_username      = var.admin_username
+  tags                = var.tags
 
   network_interface_ids = [
     azurerm_network_interface.demo.id,
   ]
 
   admin_ssh_key {
-    username   = "azureuser"
+    username   = var.admin_username
     public_key = var.ssh_public_key
   }
 
   os_disk {
+    name                 = "osdisk-${var.environment}"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -131,10 +147,7 @@ resource "azurerm_linux_virtual_machine" "demo" {
     sku       = "22_04-lts-gen2"
     version   = "latest"
   }
-}
 
-# Output: IP pública para usar en Ansible
-output "vm_public_ip" {
-  value       = azurerm_public_ip.demo.ip_address
-  description = "IP pública de la VM (para conectar con Ansible)"
+  # Buena práctica: deshabilitar password authentication
+  disable_password_authentication = true
 }
