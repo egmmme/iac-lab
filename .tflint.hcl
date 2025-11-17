@@ -4,10 +4,6 @@ plugin "azurerm" {
   source  = "github.com/terraform-linters/tflint-ruleset-azurerm"
 }
 
-config {
-  module = true
-}
-
 rule "terraform_required_version" {
   enabled = true
 }
