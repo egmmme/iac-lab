@@ -19,6 +19,10 @@ steps:
 
 - script: |
     az login --service-principal -u $(azureServicePrincipalUsername) -p $(azureServicePrincipalPassword) --tenant $(azureTenant)
+    export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
+    export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
+    export ARM_TENANT_ID=$(azureTenant)
+    export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
     terraform init
     terraform apply -auto-approve
   displayName: 'Terraform Apply'
