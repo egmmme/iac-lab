@@ -79,7 +79,7 @@ stages:
 
               # Terraform init, validate y apply
               terraform init
-              terraform fmt -check || echo "⚠️ Archivos no formateados (no bloqueante)"
+              terraform fmt -check -recursive || echo "⚠️ Archivos no formateados (no bloqueante)"
               terraform validate
               terraform plan -out=tfplan -var="ssh_public_key=$SSH_PUB_KEY"
               terraform apply -auto-approve tfplan

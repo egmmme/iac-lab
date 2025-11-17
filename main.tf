@@ -1,19 +1,22 @@
 # ===================================================================
-# TERRAFORM - Infraestructura como Código
-# Propósito: Crear recursos de Azure (VM, red, IPs)
+# TERRAFORM - Infraestructura como Código (Arquitectura Modular)
+# Propósito: Orquestar módulos reutilizables para crear infraestructura
 # ===================================================================
 # Buenas prácticas aplicadas:
+# ✓ Arquitectura modular (modules/network, modules/security, modules/compute)
 # ✓ Versiones fijadas de providers
 # ✓ Variables parametrizables (ver variables.tf)
 # ✓ Outputs documentados (ver outputs.tf)
 # ✓ Tags consistentes para trazabilidad
 # ✓ Validación (terraform validate)
 # ✓ Formateo (terraform fmt)
+# ✓ Módulos documentados con README
+# ✓ Separación de responsabilidades (SoC)
 # ===================================================================
 
 terraform {
   required_version = ">= 1.6.0"
-  
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -30,124 +33,114 @@ provider "azurerm" {
   }
 }
 
-# Grupo de Recursos
+# ===================================================================
+# RESOURCE GROUP
+# ===================================================================
+
 resource "azurerm_resource_group" "demo" {
   name     = var.resource_group_name
   location = var.location
   tags     = var.tags
 }
 
-# Red Virtual
-resource "azurerm_virtual_network" "demo" {
-  name                = "vnet-${var.environment}"
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.demo.location
-  resource_group_name = azurerm_resource_group.demo.name
-  tags                = var.tags
-}
+# ===================================================================
+# MÓDULO: NETWORK
+# Gestiona VNet, Subnet y Public IP
+# ===================================================================
 
-# Subred
-resource "azurerm_subnet" "demo" {
-  name                 = "subnet-${var.environment}"
-  resource_group_name  = azurerm_resource_group.demo.name
-  virtual_network_name = azurerm_virtual_network.demo.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
+module "network" {
+  source = "./modules/network"
 
-# IP Pública
-resource "azurerm_public_ip" "demo" {
-  name                = "pip-${var.environment}"
-  location            = azurerm_resource_group.demo.location
-  resource_group_name = azurerm_resource_group.demo.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-  tags                = var.tags
-}
-
-# Network Security Group
-resource "azurerm_network_security_group" "demo" {
-  name                = "nsg-${var.environment}"
-  location            = azurerm_resource_group.demo.location
-  resource_group_name = azurerm_resource_group.demo.name
-  tags                = var.tags
-
-  security_rule {
-    name                       = "AllowSSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"  # Buena práctica: restringir a IPs específicas en producción
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "AllowHTTP"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-}
-
-# Network Interface
-resource "azurerm_network_interface" "demo" {
-  name                = "nic-${var.environment}"
-  location            = azurerm_resource_group.demo.location
-  resource_group_name = azurerm_resource_group.demo.name
-  tags                = var.tags
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.demo.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.demo.id
-  }
-}
-
-# Asociar NSG con NIC
-resource "azurerm_network_interface_security_group_association" "demo" {
-  network_interface_id      = azurerm_network_interface.demo.id
-  network_security_group_id = azurerm_network_security_group.demo.id
-}
-
-# Máquina Virtual Linux
-resource "azurerm_linux_virtual_machine" "demo" {
-  name                = "vm-${var.environment}"
   resource_group_name = azurerm_resource_group.demo.name
   location            = azurerm_resource_group.demo.location
-  size                = var.vm_size
-  admin_username      = var.admin_username
-  tags                = var.tags
 
-  network_interface_ids = [
-    azurerm_network_interface.demo.id,
+  vnet_name      = "vnet-${var.environment}"
+  subnet_name    = "subnet-${var.environment}"
+  public_ip_name = "pip-${var.environment}"
+
+  address_space   = ["10.0.0.0/16"]
+  subnet_prefixes = ["10.0.1.0/24"]
+
+  public_ip_allocation_method = "Static"
+  public_ip_sku               = "Standard"
+
+  tags = var.tags
+}
+
+# ===================================================================
+# MÓDULO: SECURITY
+# Gestiona NSG y reglas de seguridad
+# ===================================================================
+
+module "security" {
+  source = "./modules/security"
+
+  resource_group_name = azurerm_resource_group.demo.name
+  location            = azurerm_resource_group.demo.location
+  nsg_name            = "nsg-${var.environment}"
+
+  security_rules = [
+    {
+      name                       = "AllowSSH"
+      priority                   = 1001
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = "*" # Buena práctica: restringir a IPs específicas en producción
+      destination_address_prefix = "*"
+    },
+    {
+      name                       = "AllowHTTP"
+      priority                   = 1002
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "80"
+      source_address_prefix      = "*"
+      destination_address_prefix = "*"
+    }
   ]
 
-  admin_ssh_key {
-    username   = var.admin_username
-    public_key = var.ssh_public_key
-  }
+  tags = var.tags
+}
 
-  os_disk {
-    name                 = "osdisk-${var.environment}"
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
+# ===================================================================
+# MÓDULO: COMPUTE
+# Gestiona VM Linux, NIC y asociación con NSG
+# ===================================================================
 
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts-gen2"
-    version   = "latest"
-  }
+module "compute" {
+  source = "./modules/compute"
 
-  # Buena práctica: deshabilitar password authentication
+  resource_group_name = azurerm_resource_group.demo.name
+  location            = azurerm_resource_group.demo.location
+
+  vm_name  = "vm-${var.environment}"
+  nic_name = "nic-${var.environment}"
+  vm_size  = var.vm_size
+
+  # Dependencias de otros módulos
+  subnet_id    = module.network.subnet_id
+  public_ip_id = module.network.public_ip_id
+  nsg_id       = module.security.nsg_id
+
+  # Configuración de autenticación
+  admin_username                  = var.admin_username
+  ssh_public_key                  = var.ssh_public_key
   disable_password_authentication = true
+
+  # Configuración de almacenamiento
+  os_disk_caching              = "ReadWrite"
+  os_disk_storage_account_type = "Standard_LRS"
+
+  # Imagen del SO (Ubuntu 22.04 LTS)
+  image_publisher = "Canonical"
+  image_offer     = "0001-com-ubuntu-server-jammy"
+  image_sku       = "22_04-lts-gen2"
+  image_version   = "latest"
+
+  tags = var.tags
 }

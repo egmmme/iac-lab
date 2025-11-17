@@ -38,7 +38,7 @@ variable "environment" {
   description = "Ambiente de despliegue"
   type        = string
   default     = "demo"
-  
+
   validation {
     condition     = contains(["dev", "demo", "prod"], var.environment)
     error_message = "Environment debe ser: dev, demo o prod"
