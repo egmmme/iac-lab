@@ -1,32 +1,56 @@
 trigger:
-- main
+  - main
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: "ubuntu-latest"
 
 steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.x'
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.x"
 
-- script: |
-    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-    sudo apt-get install -y ansible
-    curl -sLo terraform.zip https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
-    unzip terraform.zip
-    sudo mv terraform /usr/local/bin/
-  displayName: 'Install dependencies'
+  - script: |
+      curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      sudo apt-get install -y ansible
+      curl -sLo terraform.zip https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+      unzip terraform.zip
+      sudo mv terraform /usr/local/bin/
+    displayName: "Install dependencies"
 
-- script: |
-    az login --service-principal -u $(azureServicePrincipalUsername) -p $(azureServicePrincipalPassword) --tenant $(azureTenant)
-    export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
-    export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
-    export ARM_TENANT_ID=$(azureTenant)
-    export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-    terraform init
-    terraform apply -auto-approve
-  displayName: 'Terraform Apply'
+  - script: |
+      # Generate SSH key pair for the VM
+      ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+      echo "SSH public key:"
+      cat ~/.ssh/id_rsa.pub
+    displayName: "Generate SSH Keys"
 
-- script: |
-    ansible-playbook -i inventory.ini setup_vm.yml
-  displayName: 'Ansible Playbook'
+  - script: |
+      az login --service-principal -u $(azureServicePrincipalUsername) -p $(azureServicePrincipalPassword) --tenant $(azureTenant)
+      export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
+      export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
+      export ARM_TENANT_ID=$(azureTenant)
+      export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+      terraform init
+      terraform apply -auto-approve
+
+      # Capture the VM public IP from Terraform output
+      VM_IP=$(terraform output -raw vm_public_ip)
+      echo "VM Public IP: $VM_IP"
+      echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$VM_IP"
+    displayName: "Terraform Apply"
+
+  - script: |
+      # Update inventory.ini with the actual VM IP
+      echo "[azure]" > inventory.ini
+      echo "$(VM_PUBLIC_IP) ansible_user=azureuser ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory.ini
+
+      echo "Generated inventory.ini:"
+      cat inventory.ini
+
+      # Wait for VM to be ready for SSH
+      echo "Waiting for VM to be ready..."
+      sleep 60
+
+      # Run Ansible playbook
+      ansible-playbook -i inventory.ini setup_vm.yml
+    displayName: "Ansible Playbook"
