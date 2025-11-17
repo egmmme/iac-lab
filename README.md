@@ -35,16 +35,16 @@ This lab demonstrates how to automate Azure infrastructure provisioning using Te
 
 ### 🚀 What happens when you run the pipeline:
 
-Creates a Linux VM (Ubuntu 22.04 LTS) in Azure
-Configures networking (VNet, Subnet, Public IP, NSG)
-Opens ports 22 (SSH) and 80 (HTTP)
-Installs NGINX web server via Ansible
-You can access NGINX at http://<VM_PUBLIC_IP>
+- Creates a Linux VM (Ubuntu 22.04 LTS) in Azure
+- Configures networking (VNet, Subnet, Public IP, NSG)
+- Opens ports 22 (SSH) and 80 (HTTP)
+- Installs NGINX web server via Ansible
+- You can access NGINX at http://<VM_PUBLIC_IP>
 
 ### 💰 Cost Note:
 
-VM size: Standard_B1s (~$7-10/month if running 24/7)
-Remember to delete resources when not needed!
+- VM size: Standard_B1s (~$7-10/month if running 24/7)
+- Remember to delete resources when not needed!
 
 ### 🔧 Build and test:
 
