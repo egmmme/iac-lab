@@ -19,9 +19,23 @@ variable "ssh_public_key" {
   type        = string
 }
 
+# Deployment location (region)
+variable "location" {
+  description = "Azure region to deploy resources"
+  type        = string
+  default     = "eastus"
+}
+
+# VM size with fallback handled in pipeline if unavailable
+variable "vm_size" {
+  description = "Azure VM size"
+  type        = string
+  default     = "Standard_B1ms"
+}
+
 resource "azurerm_resource_group" "lab_rg" {
   name     = "lab-resource-group"
-  location = "East US"
+  location = var.location
 }
 
 # Virtual Network
@@ -104,7 +118,7 @@ resource "azurerm_linux_virtual_machine" "lab_vm" {
   name                = "lab-vm"
   resource_group_name = azurerm_resource_group.lab_rg.name
   location            = azurerm_resource_group.lab_rg.location
-  size                = "Standard_B1s"  # Small, cost-effective size
+  size                = var.vm_size
   admin_username      = "azureuser"
   
   network_interface_ids = [

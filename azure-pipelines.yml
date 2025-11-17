@@ -25,6 +25,7 @@ steps:
     displayName: "Generate SSH Keys"
 
   - script: |
+      set -euo pipefail
       az login --service-principal -u $(azureServicePrincipalUsername) -p $(azureServicePrincipalPassword) --tenant $(azureTenant)
       export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
       export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
@@ -45,12 +46,45 @@ steps:
       SSH_PUB_KEY=$(cat ~/.ssh/id_rsa.pub)
 
       terraform init
-      terraform apply -auto-approve -var="ssh_public_key=$SSH_PUB_KEY"
+
+      # Auto region + size fallback selection
+      REGIONS=("eastus" "eastus2" "centralus" "southcentralus" "westeurope" "northeurope")
+      FALLBACK_SIZES=("Standard_B1ms" "Standard_B2s" "Standard_B1s" "Standard_D2s_v5" "Standard_D2s_v3")
+      SELECTED_REGION=""
+      SELECTED_SIZE=""
+      echo "Attempting region/size selection..."
+      for r in "${REGIONS[@]}"; do
+        echo "Checking region: $r"
+        for sz in "${FALLBACK_SIZES[@]}"; do
+          AVAILABLE=$(az vm list-skus -l $r --query "[?name=='$sz' && restrictions==null].name" -o tsv || true)
+          if [ "$AVAILABLE" == "$sz" ]; then
+            SELECTED_REGION=$r
+            SELECTED_SIZE=$sz
+            echo "Selected region=$SELECTED_REGION size=$SELECTED_SIZE"
+            break
+          else
+            echo "  Size $sz not available in $r"
+          fi
+        done
+        [ -n "$SELECTED_REGION" ] && break
+      done
+      if [ -z "$SELECTED_REGION" ] || [ -z "$SELECTED_SIZE" ]; then
+        echo "ERROR: Could not find any available VM size in candidate regions" >&2
+        exit 1
+      fi
+
+      terraform apply -auto-approve -var="ssh_public_key=$SSH_PUB_KEY" -var="location=$SELECTED_REGION" -var="vm_size=$SELECTED_SIZE"
 
       # Capture the VM public IP from Terraform output
-      VM_IP=$(terraform output -raw vm_public_ip)
+      VM_IP=$(terraform output -raw vm_public_ip || true)
       echo "VM Public IP: $VM_IP"
       echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$VM_IP"
+
+      # Verify VM exists before proceeding
+      if ! az vm show --resource-group lab-resource-group --name lab-vm &>/dev/null; then
+        echo "ERROR: VM lab-vm not found after terraform apply" >&2
+        exit 1
+      fi
     displayName: "Terraform Apply"
 
   - script: |
