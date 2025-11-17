@@ -38,7 +38,19 @@ stages:
               ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
               echo "Clave SSH generada:"
               cat ~/.ssh/id_rsa.pub
+              # Guardar clave privada como artefacto seguro
+              mkdir -p $(Build.ArtifactStagingDirectory)/ssh
+              cp ~/.ssh/id_rsa $(Build.ArtifactStagingDirectory)/ssh/id_rsa
+              cp ~/.ssh/id_rsa.pub $(Build.ArtifactStagingDirectory)/ssh/id_rsa.pub
             displayName: "🔑 Generar claves SSH"
+
+          # Publicar claves SSH como artefacto
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/ssh"
+              artifact: "sshkeys"
+              publishLocation: "pipeline"
+            displayName: "📤 Publicar claves SSH"
 
           # Ejecutar Terraform
           - script: |
@@ -65,8 +77,10 @@ stages:
               # Obtener clave SSH pública
               SSH_PUB_KEY=$(cat ~/.ssh/id_rsa.pub)
 
-              # Terraform init y apply
+              # Terraform init, validate y apply
               terraform init
+              terraform fmt -check || echo "⚠️ Archivos no formateados (no bloqueante)"
+              terraform validate
               terraform plan -out=tfplan -var="ssh_public_key=$SSH_PUB_KEY"
               terraform apply -auto-approve tfplan
 
@@ -96,10 +110,23 @@ stages:
               ansible --version
             displayName: "📦 Instalar Ansible"
 
-          # Regenerar claves SSH (mismo par que en Terraform)
+          # Descargar claves SSH del stage anterior
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifact: "sshkeys"
+              path: "$(Pipeline.Workspace)/sshkeys"
+            displayName: "📥 Descargar claves SSH"
+
+          # Restaurar claves SSH
           - script: |
-              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-            displayName: "🔑 Regenerar claves SSH"
+              mkdir -p ~/.ssh
+              cp $(Pipeline.Workspace)/sshkeys/id_rsa ~/.ssh/id_rsa
+              cp $(Pipeline.Workspace)/sshkeys/id_rsa.pub ~/.ssh/id_rsa.pub
+              chmod 600 ~/.ssh/id_rsa
+              chmod 644 ~/.ssh/id_rsa.pub
+              echo "Clave SSH restaurada:"
+              ssh-keygen -lf ~/.ssh/id_rsa.pub
+            displayName: "🔑 Restaurar claves SSH"
 
           # Generar inventario dinámico
           - script: |
@@ -111,24 +138,33 @@ stages:
               cat inventory.ini
             displayName: "📋 Crear inventario"
 
-          # Esperar a que SSH esté disponible
+          # Esperar a que la VM esté completamente lista
           - script: |
-              echo "⏳ Esperando a que SSH esté disponible..."
-              MAX_RETRIES=20
+              echo "⏳ Esperando a que la VM esté lista..."
+              echo "IP de la VM: $(vmIP)"
+
+              # Esperar inicial para cloud-init
+              echo "Esperando 60 segundos para inicialización de la VM..."
+              sleep 60
+
+              MAX_RETRIES=30
               RETRY_COUNT=0
 
               while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-                echo "Intento $((RETRY_COUNT + 1))/$MAX_RETRIES..."
-                if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa azureuser@$(vmIP) "echo 'SSH OK'" 2>/dev/null; then
+                echo "Intento SSH $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+                if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -i ~/.ssh/id_rsa azureuser@$(vmIP) "echo 'SSH OK'" 2>/dev/null; then
                   echo "✅ SSH disponible!"
+                  # Verificar que cloud-init terminó
+                  ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa azureuser@$(vmIP) "cloud-init status --wait" 2>/dev/null || echo "Cloud-init check skipped"
                   break
                 fi
                 RETRY_COUNT=$((RETRY_COUNT + 1))
-                [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 15
+                [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 10
               done
 
               if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                echo "❌ ERROR: No se pudo conectar por SSH"
+                echo "❌ ERROR: No se pudo conectar por SSH después de $((MAX_RETRIES * 10)) segundos"
+                echo "Troubleshooting: verifique NSG rules, VM status, y SSH key en Azure Portal"
                 exit 1
               fi
             displayName: "🔌 Esperar conexión SSH"
