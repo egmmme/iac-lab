@@ -35,11 +35,12 @@ This lab demonstrates how to automate Azure infrastructure provisioning using Te
 
 ### 🚀 What happens when you run the pipeline:
 
-- Creates a Linux VM (Ubuntu 22.04 LTS) in Azure
-- Configures networking (VNet, Subnet, Public IP, NSG)
-- Opens ports 22 (SSH) and 80 (HTTP)
-- Installs NGINX web server via Ansible
-- You can access NGINX at http://<VM_PUBLIC_IP>
+- Delete any existing resources
+- Create VM with all networking
+- Wait for cloud-init extension to complete (ensures SSH is ready)
+- Retry SSH connection up to 20 times with 15-second intervals
+- Once connected, run Ansible to install NGINX
+- Success! Visit http://<VM_PUBLIC_IP> to see NGINX
 
 ### 💰 Cost Note:
 
@@ -55,14 +56,21 @@ This lab demonstrates how to automate Azure infrastructure provisioning using Te
 - Visit http://<IP> to see NGINX running
 
 ### 🧹 To clean up resources:
+```bash
+az group delete --name "lab-resource-group" --yes --no-wait
+```
 
-Your pipeline is now complete and ready to deploy! 🎉
-
-## Differences: Terraform vs Ansible
-
-| Aspect       | Terraform                   | Ansible                  |
-| ------------ | --------------------------- | ------------------------ |
-| Syntax       | Declarative HCL             | YAML (procedural)        |
-| Execution    | Plans and applies state     | Executes tasks over SSH  |
-| Traceability | State file tracks resources | Logs per playbook run    |
-| Use Case     | Infrastructure provisioning | Configuration management |
+### ✅ SSH Connection Improvements
+1. Retry Logic (20 attempts)
+Tests SSH connection every 15 seconds
+Up to 20 attempts (5 minutes total)
+Shows progress for each attempt
+Exits with error if all attempts fail
+2. Cloud-Init Wait Extension
+Added VM extension that waits for cloud-init to complete
+Ensures SSH service is fully started before Terraform considers VM ready
+Reduces race conditions between VM creation and SSH availability
+3. Better Error Handling
+Connection timeout set to 10 seconds per attempt
+Shows VM power state if connection fails
+More informative error messages

@@ -35,9 +35,10 @@ steps:
       echo "Checking for existing resource group..."
       if az group show --name "lab-resource-group" &>/dev/null; then
         echo "Deleting existing resource group..."
-        az group delete --name "lab-resource-group" --yes --no-wait
-        echo "Waiting for deletion to complete..."
-        sleep 30
+        az group delete --name "lab-resource-group" --yes
+        echo "Resource group deleted successfully."
+      else
+        echo "No existing resource group found."
       fi
 
       # Get the SSH public key
