@@ -31,6 +31,15 @@ steps:
       export ARM_TENANT_ID=$(azureTenant)
       export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
+      # Clean up any existing resource group
+      echo "Checking for existing resource group..."
+      if az group show --name "lab-resource-group" &>/dev/null; then
+        echo "Deleting existing resource group..."
+        az group delete --name "lab-resource-group" --yes --no-wait
+        echo "Waiting for deletion to complete..."
+        sleep 30
+      fi
+
       # Get the SSH public key
       SSH_PUB_KEY=$(cat ~/.ssh/id_rsa.pub)
 
