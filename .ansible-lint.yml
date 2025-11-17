@@ -1,0 +1,16 @@
+profiles:
+  - production
+
+exclude_paths:
+  - .terraform/
+  - modules/
+
+warn_list:
+  - experimental # enable experimental rules as warnings
+
+skip_list:
+  - yaml # allow simple YAML formatting differences in demo
+
+kinds:
+  - playbook
+# Basic config for demo; tighten in production

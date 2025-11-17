@@ -17,10 +17,86 @@ variables:
 
 stages:
   # ================================================================
+  # STAGE 0: LINT & TEST - Validación, Linting y Testing IaC
+  # ================================================================
+  - stage: LintAndTest
+    displayName: "🧪 Lint & Test - IaC"
+    jobs:
+      - job: TerraformLint
+        displayName: "Terraform - fmt/validate/tflint/tfsec"
+        steps:
+          - script: |
+              wget -q https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+              unzip -o terraform_1.6.0_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/
+              terraform --version
+            displayName: "📦 Instalar Terraform"
+          - script: |
+              curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+              tflint --version
+            displayName: "📦 Instalar TFLint"
+          - script: |
+              curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+              tfsec --version
+            displayName: "📦 Instalar tfsec"
+          - script: |
+              terraform init -backend=false
+              terraform fmt -check -recursive
+              terraform validate
+            displayName: "✅ Terraform validate + fmt"
+          - script: |
+              tflint --recursive
+            displayName: "🔍 TFLint (Terraform Lint)"
+          - script: |
+              tfsec .
+            displayName: "🛡️ tfsec (Security Scan)"
+
+      - job: AnsibleLint
+        displayName: "Ansible - ansible-lint"
+        steps:
+          - script: |
+              sudo apt-get update
+              sudo apt-get install -y python3-pip
+              pip3 install --user ansible ansible-lint
+              ~/.local/bin/ansible-lint --version
+            displayName: "📦 Instalar ansible-lint"
+          - script: |
+              ~/.local/bin/ansible-lint -c .ansible-lint.yml setup_vm.yml
+            displayName: "🔍 Ejecutar ansible-lint"
+
+      - job: Terratest
+        displayName: "Terratest - plan de módulos y root"
+        steps:
+          - script: |
+              sudo apt-get update
+              sudo apt-get install -y golang-go
+              go version
+            displayName: "📦 Instalar Go"
+          - script: |
+              wget -q https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+              unzip -o terraform_1.6.0_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/
+            displayName: "📦 Instalar Terraform"
+          - script: |
+              az login --service-principal \
+                -u $(azureServicePrincipalUsername) \
+                -p $(azureServicePrincipalPassword) \
+                --tenant $(azureTenant)
+              export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
+              export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
+              export ARM_TENANT_ID=$(azureTenant)
+              export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+              cd tests
+              go env -w GOPATH=$HOME/go
+              go mod download
+              go test -v -timeout 30m ./...
+            displayName: "🧪 Ejecutar Terratest (plan)"
+  # ================================================================
   # STAGE 1: TERRAFORM - Provisionar Infraestructura
   # ================================================================
   - stage: Provision
     displayName: "🏗️ Terraform - Crear Infraestructura"
+    dependsOn: LintAndTest
     jobs:
       - job: TerraformApply
         displayName: "Terraform Apply"
