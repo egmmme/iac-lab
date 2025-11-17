@@ -1,132 +1,166 @@
+# ===================================================================
+# Azure DevOps Pipeline - Terraform + Ansible Demo
+# ===================================================================
+# Propósito: Demostrar integración de Terraform (infraestructura)
+#            y Ansible (configuración) en un pipeline CI/CD
+# ===================================================================
+
 trigger:
   - main
 
 pool:
   vmImage: "ubuntu-latest"
 
-steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: "3.x"
+variables:
+  RESOURCE_GROUP: "rg-terraform-ansible-demo"
+  VM_NAME: "vm-demo"
 
-  - script: |
-      curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      sudo apt-get install -y ansible
-      curl -sLo terraform.zip https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
-      unzip terraform.zip
-      sudo mv terraform /usr/local/bin/
-    displayName: "Install dependencies"
+stages:
+  # ================================================================
+  # STAGE 1: TERRAFORM - Provisionar Infraestructura
+  # ================================================================
+  - stage: Provision
+    displayName: "🏗️ Terraform - Crear Infraestructura"
+    jobs:
+      - job: TerraformApply
+        displayName: "Terraform Apply"
+        steps:
+          # Instalar Terraform
+          - script: |
+              wget -q https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+              unzip -o terraform_1.6.0_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/
+              terraform --version
+            displayName: "📦 Instalar Terraform"
 
-  - script: |
-      # Generate SSH key pair for the VM
-      ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-      echo "SSH public key:"
-      cat ~/.ssh/id_rsa.pub
-    displayName: "Generate SSH Keys"
+          # Generar claves SSH
+          - script: |
+              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+              echo "Clave SSH generada:"
+              cat ~/.ssh/id_rsa.pub
+            displayName: "🔑 Generar claves SSH"
 
-  - script: |
-      set -euo pipefail
-      az login --service-principal -u $(azureServicePrincipalUsername) -p $(azureServicePrincipalPassword) --tenant $(azureTenant)
-      export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
-      export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
-      export ARM_TENANT_ID=$(azureTenant)
-      export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          # Ejecutar Terraform
+          - script: |
+              set -e
 
-      # Clean up any existing resource group
-      echo "Checking for existing resource group..."
-      if az group show --name "lab-resource-group" &>/dev/null; then
-        echo "Deleting existing resource group..."
-        az group delete --name "lab-resource-group" --yes
-        echo "Resource group deleted successfully."
-      else
-        echo "No existing resource group found."
-      fi
+              # Login a Azure
+              az login --service-principal \
+                -u $(azureServicePrincipalUsername) \
+                -p $(azureServicePrincipalPassword) \
+                --tenant $(azureTenant)
 
-      # Get the SSH public key
-      SSH_PUB_KEY=$(cat ~/.ssh/id_rsa.pub)
+              # Variables de entorno para Terraform
+              export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
+              export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
+              export ARM_TENANT_ID=$(azureTenant)
+              export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
-      terraform init
+              # Limpiar recursos existentes
+              echo "🧹 Limpiando recursos existentes..."
+              if az group show --name $(RESOURCE_GROUP) &>/dev/null; then
+                az group delete --name $(RESOURCE_GROUP) --yes
+              fi
 
-      # Auto region + size fallback selection
-      REGIONS=("eastus" "eastus2" "centralus" "southcentralus" "westeurope" "northeurope")
-      FALLBACK_SIZES=("Standard_B1ms" "Standard_B2s" "Standard_B1s" "Standard_D2s_v5" "Standard_D2s_v3")
-      SELECTED_REGION=""
-      SELECTED_SIZE=""
-      echo "Attempting region/size selection..."
-      for r in "${REGIONS[@]}"; do
-        echo "Checking region: $r"
-        for sz in "${FALLBACK_SIZES[@]}"; do
-          AVAILABLE=$(az vm list-skus -l $r --query "[?name=='$sz' && restrictions==null].name" -o tsv || true)
-          if [ "$AVAILABLE" == "$sz" ]; then
-            SELECTED_REGION=$r
-            SELECTED_SIZE=$sz
-            echo "Selected region=$SELECTED_REGION size=$SELECTED_SIZE"
-            break
-          else
-            echo "  Size $sz not available in $r"
-          fi
-        done
-        [ -n "$SELECTED_REGION" ] && break
-      done
-      if [ -z "$SELECTED_REGION" ] || [ -z "$SELECTED_SIZE" ]; then
-        echo "ERROR: Could not find any available VM size in candidate regions" >&2
-        exit 1
-      fi
+              # Obtener clave SSH pública
+              SSH_PUB_KEY=$(cat ~/.ssh/id_rsa.pub)
 
-      terraform apply -auto-approve -var="ssh_public_key=$SSH_PUB_KEY" -var="location=$SELECTED_REGION" -var="vm_size=$SELECTED_SIZE"
+              # Terraform init y apply
+              terraform init
+              terraform plan -out=tfplan -var="ssh_public_key=$SSH_PUB_KEY"
+              terraform apply -auto-approve tfplan
 
-      # Capture the VM public IP from Terraform output
-      VM_IP=$(terraform output -raw vm_public_ip || true)
-      echo "VM Public IP: $VM_IP"
-      echo "##vso[task.setvariable variable=VM_PUBLIC_IP]$VM_IP"
+              # Capturar IP de la VM
+              VM_IP=$(terraform output -raw vm_public_ip)
+              echo "✅ VM creada con IP: $VM_IP"
+              echo "##vso[task.setvariable variable=VM_PUBLIC_IP;isOutput=true]$VM_IP"
+            displayName: "🚀 Terraform Apply"
+            name: terraformOutput
 
-      # Verify VM exists before proceeding
-      if ! az vm show --resource-group lab-resource-group --name lab-vm &>/dev/null; then
-        echo "ERROR: VM lab-vm not found after terraform apply" >&2
-        exit 1
-      fi
-    displayName: "Terraform Apply"
+  # ================================================================
+  # STAGE 2: ANSIBLE - Configurar Software
+  # ================================================================
+  - stage: Configure
+    displayName: "⚙️ Ansible - Configurar VM"
+    dependsOn: Provision
+    jobs:
+      - job: AnsibleConfigure
+        displayName: "Ansible Playbook"
+        variables:
+          vmIP: $[ stageDependencies.Provision.TerraformApply.outputs['terraformOutput.VM_PUBLIC_IP'] ]
+        steps:
+          # Instalar Ansible
+          - script: |
+              sudo apt-get update
+              sudo apt-get install -y ansible
+              ansible --version
+            displayName: "📦 Instalar Ansible"
 
-  - script: |
-      # Check if VM IP was captured
-      if [ -z "$(VM_PUBLIC_IP)" ]; then
-        echo "ERROR: VM Public IP is empty. Terraform output failed."
-        exit 1
-      fi
+          # Regenerar claves SSH (mismo par que en Terraform)
+          - script: |
+              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+            displayName: "🔑 Regenerar claves SSH"
 
-      # Update inventory.ini with the actual VM IP
-      echo "[azure]" > inventory.ini
-      echo "$(VM_PUBLIC_IP) ansible_user=azureuser ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory.ini
+          # Generar inventario dinámico
+          - script: |
+              echo "📝 Generando inventario Ansible..."
+              echo "[webservers]" > inventory.ini
+              echo "$(vmIP) ansible_user=azureuser ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory.ini
 
-      echo "Generated inventory.ini:"
-      cat inventory.ini
+              echo "Inventario generado:"
+              cat inventory.ini
+            displayName: "📋 Crear inventario"
 
-      # Wait for VM to be ready for SSH with retry logic
-      echo "Waiting for VM to be ready for SSH..."
-      MAX_RETRIES=20
-      RETRY_COUNT=0
+          # Esperar a que SSH esté disponible
+          - script: |
+              echo "⏳ Esperando a que SSH esté disponible..."
+              MAX_RETRIES=20
+              RETRY_COUNT=0
 
-      while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-        echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES: Testing SSH connectivity..."
-        if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa azureuser@$(VM_PUBLIC_IP) "echo 'SSH connection successful'" 2>/dev/null; then
-          echo "SSH connection established!"
-          break
-        fi
-        RETRY_COUNT=$((RETRY_COUNT + 1))
-        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-          echo "SSH not ready yet, waiting 15 seconds..."
-          sleep 15
-        fi
-      done
+              while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                echo "Intento $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+                if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa azureuser@$(vmIP) "echo 'SSH OK'" 2>/dev/null; then
+                  echo "✅ SSH disponible!"
+                  break
+                fi
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 15
+              done
 
-      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-        echo "ERROR: Failed to connect to VM after $MAX_RETRIES attempts"
-        echo "Checking VM provisioning state..."
-        az vm get-instance-view --resource-group lab-resource-group --name lab-vm --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
-        exit 1
-      fi
+              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                echo "❌ ERROR: No se pudo conectar por SSH"
+                exit 1
+              fi
+            displayName: "🔌 Esperar conexión SSH"
 
-      # Run Ansible playbook
-      echo "Running Ansible playbook..."
-      ansible-playbook -i inventory.ini setup_vm.yml -v
-    displayName: "Ansible Playbook"
+          # Ejecutar Ansible Playbook
+          - script: |
+              echo "🎭 Ejecutando Ansible playbook..."
+              ansible-playbook -i inventory.ini setup_vm.yml -v
+            displayName: "🎯 Ansible Playbook"
+
+          # Verificar resultado
+          - script: |
+              echo "🌐 Verificando deployment..."
+              echo "Puedes acceder a: http://$(vmIP)"
+
+              # Test HTTP
+              sleep 5
+              curl -s http://$(vmIP) | grep -q "Terraform + Ansible" && echo "✅ Nginx OK" || echo "⚠️ Nginx podría no estar listo aún"
+            displayName: "✔️ Verificar deployment"
+# ===================================================================
+# NOTAS DE CONFIGURACIÓN:
+#
+# 1. Crear variables secretas en Azure DevOps:
+#    - azureServicePrincipalUsername (App ID)
+#    - azureServicePrincipalPassword (Client Secret)
+#    - azureTenant (Tenant ID)
+#
+# 2. Para crear Service Principal:
+#    az ad sp create-for-rbac --name "terraform-ansible-demo" \
+#      --role Contributor \
+#      --scopes /subscriptions/{SUBSCRIPTION_ID}
+#
+# 3. Costo aproximado: Standard_B1s ≈ $8-10/mes
+#    Eliminar recursos: az group delete --name rg-terraform-ansible-demo --yes
+# ===================================================================

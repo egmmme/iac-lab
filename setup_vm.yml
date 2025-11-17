@@ -1,8 +1,67 @@
-- hosts: azure
+# ===================================================================
+# ANSIBLE - Gestión de Configuración
+# Propósito: Configurar software en la VM (instalar Nginx)
+# ===================================================================
+---
+- name: Configurar servidor web
+  hosts: webservers
   become: yes
+
   tasks:
-    - name: Install NGINX
+    - name: Actualizar caché de paquetes
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar Nginx
       apt:
         name: nginx
         state: present
-        update_cache: yes
+
+    - name: Iniciar y habilitar Nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Crear página index personalizada
+      copy:
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Demo Terraform + Ansible</title>
+              <style>
+                  body { font-family: Arial; margin: 50px; background: #f0f0f0; }
+                  .container { background: white; padding: 30px; border-radius: 8px; }
+                  h1 { color: #0078D4; }
+                  .tech { background: #e8e8e8; padding: 10px; margin: 10px 0; border-radius: 4px; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🚀 Deployed with Terraform + Ansible!</h1>
+                  <div class="tech">
+                      <strong>Infrastructure:</strong> Terraform (IaC)
+                      <br>Creó: VM, VNet, IP pública, NSG
+                  </div>
+                  <div class="tech">
+                      <strong>Configuration:</strong> Ansible
+                      <br>Instaló: Nginx, página personalizada
+                  </div>
+                  <p>✅ Pipeline completado exitosamente</p>
+              </div>
+          </body>
+          </html>
+        dest: /var/www/html/index.html
+        mode: "0644"
+
+    - name: Verificar que Nginx está corriendo
+      systemd:
+        name: nginx
+        state: started
+      register: nginx_status
+
+    - name: Mostrar estado de Nginx
+      debug:
+        msg: "Nginx está {{ nginx_status.status.ActiveState }}"

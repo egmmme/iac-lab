@@ -1,72 +1,62 @@
+# ===================================================================
+# TERRAFORM - Infraestructura como Código
+# Propósito: Crear recursos de Azure (VM, red, IPs)
+# ===================================================================
+
 terraform {
-  # Uncomment this block after creating a storage account for remote state
-  # backend "azurerm" {
-  #   resource_group_name  = "terraform-state-rg"
-  #   storage_account_name = "tfstatexxxxx"  # Must be globally unique
-  #   container_name       = "tfstate"
-  #   key                  = "terraform.tfstate"
-  # }
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+  }
 }
 
 provider "azurerm" {
   features {}
-  subscription_id = "13b98216-b11e-482f-b0a8-af5294c9f076"
 }
 
-# Variable for SSH public key
+# Variable para clave SSH pública (generada en pipeline)
 variable "ssh_public_key" {
   description = "SSH public key for VM access"
   type        = string
 }
 
-# Deployment location (region)
-variable "location" {
-  description = "Azure region to deploy resources"
-  type        = string
-  default     = "eastus"
+# Grupo de Recursos
+resource "azurerm_resource_group" "demo" {
+  name     = "rg-terraform-ansible-demo"
+  location = "West Europe"
 }
 
-# VM size with fallback handled in pipeline if unavailable
-variable "vm_size" {
-  description = "Azure VM size"
-  type        = string
-  default     = "Standard_B1ms"
-}
-
-resource "azurerm_resource_group" "lab_rg" {
-  name     = "lab-resource-group"
-  location = var.location
-}
-
-# Virtual Network
-resource "azurerm_virtual_network" "lab_vnet" {
-  name                = "lab-vnet"
+# Red Virtual
+resource "azurerm_virtual_network" "demo" {
+  name                = "vnet-demo"
   address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.lab_rg.location
-  resource_group_name = azurerm_resource_group.lab_rg.name
+  location            = azurerm_resource_group.demo.location
+  resource_group_name = azurerm_resource_group.demo.name
 }
 
-# Subnet
-resource "azurerm_subnet" "lab_subnet" {
-  name                 = "lab-subnet"
-  resource_group_name  = azurerm_resource_group.lab_rg.name
-  virtual_network_name = azurerm_virtual_network.lab_vnet.name
+# Subred
+resource "azurerm_subnet" "demo" {
+  name                 = "subnet-demo"
+  resource_group_name  = azurerm_resource_group.demo.name
+  virtual_network_name = azurerm_virtual_network.demo.name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Public IP
-resource "azurerm_public_ip" "lab_public_ip" {
-  name                = "lab-public-ip"
-  location            = azurerm_resource_group.lab_rg.location
-  resource_group_name = azurerm_resource_group.lab_rg.name
+# IP Pública
+resource "azurerm_public_ip" "demo" {
+  name                = "pip-demo"
+  location            = azurerm_resource_group.demo.location
+  resource_group_name = azurerm_resource_group.demo.name
   allocation_method   = "Static"
 }
 
-# Network Security Group
-resource "azurerm_network_security_group" "lab_nsg" {
-  name                = "lab-nsg"
-  location            = azurerm_resource_group.lab_rg.location
-  resource_group_name = azurerm_resource_group.lab_rg.name
+# Network Security Group (permite SSH y HTTP)
+resource "azurerm_network_security_group" "demo" {
+  name                = "nsg-demo"
+  location            = azurerm_resource_group.demo.location
+  resource_group_name = azurerm_resource_group.demo.name
 
   security_rule {
     name                       = "SSH"
@@ -94,35 +84,35 @@ resource "azurerm_network_security_group" "lab_nsg" {
 }
 
 # Network Interface
-resource "azurerm_network_interface" "lab_nic" {
-  name                = "lab-nic"
-  location            = azurerm_resource_group.lab_rg.location
-  resource_group_name = azurerm_resource_group.lab_rg.name
+resource "azurerm_network_interface" "demo" {
+  name                = "nic-demo"
+  location            = azurerm_resource_group.demo.location
+  resource_group_name = azurerm_resource_group.demo.name
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = azurerm_subnet.lab_subnet.id
+    subnet_id                     = azurerm_subnet.demo.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.lab_public_ip.id
+    public_ip_address_id          = azurerm_public_ip.demo.id
   }
 }
 
-# Associate NSG with NIC
-resource "azurerm_network_interface_security_group_association" "lab_nsg_assoc" {
-  network_interface_id      = azurerm_network_interface.lab_nic.id
-  network_security_group_id = azurerm_network_security_group.lab_nsg.id
+# Asociar NSG con NIC
+resource "azurerm_network_interface_security_group_association" "demo" {
+  network_interface_id      = azurerm_network_interface.demo.id
+  network_security_group_id = azurerm_network_security_group.demo.id
 }
 
-# Virtual Machine
-resource "azurerm_linux_virtual_machine" "lab_vm" {
-  name                = "lab-vm"
-  resource_group_name = azurerm_resource_group.lab_rg.name
-  location            = azurerm_resource_group.lab_rg.location
-  size                = var.vm_size
+# Máquina Virtual Linux
+resource "azurerm_linux_virtual_machine" "demo" {
+  name                = "vm-demo"
+  resource_group_name = azurerm_resource_group.demo.name
+  location            = azurerm_resource_group.demo.location
+  size                = "Standard_B1s"
   admin_username      = "azureuser"
-  
+
   network_interface_ids = [
-    azurerm_network_interface.lab_nic.id,
+    azurerm_network_interface.demo.id,
   ]
 
   admin_ssh_key {
@@ -143,23 +133,8 @@ resource "azurerm_linux_virtual_machine" "lab_vm" {
   }
 }
 
-# VM Extension to ensure cloud-init completes
-resource "azurerm_virtual_machine_extension" "cloud_init_wait" {
-  name                 = "wait-for-cloud-init"
-  virtual_machine_id   = azurerm_linux_virtual_machine.lab_vm.id
-  publisher            = "Microsoft.Azure.Extensions"
-  type                 = "CustomScript"
-  type_handler_version = "2.1"
-
-  settings = jsonencode({
-    commandToExecute = "cloud-init status --wait && systemctl status ssh"
-  })
-
-  depends_on = [azurerm_linux_virtual_machine.lab_vm]
-}
-
-# Output the public IP
+# Output: IP pública para usar en Ansible
 output "vm_public_ip" {
-  value = azurerm_public_ip.lab_public_ip.ip_address
-  description = "The public IP address of the virtual machine"
+  value       = azurerm_public_ip.demo.ip_address
+  description = "IP pública de la VM (para conectar con Ansible)"
 }
