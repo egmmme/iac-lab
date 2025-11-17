@@ -13,6 +13,12 @@ provider "azurerm" {
   subscription_id = "13b98216-b11e-482f-b0a8-af5294c9f076"
 }
 
+# Variable for SSH public key
+variable "ssh_public_key" {
+  description = "SSH public key for VM access"
+  type        = string
+}
+
 resource "azurerm_resource_group" "lab_rg" {
   name     = "lab-resource-group"
   location = "East US"
@@ -107,7 +113,7 @@ resource "azurerm_linux_virtual_machine" "lab_vm" {
 
   admin_ssh_key {
     username   = "azureuser"
-    public_key = file("~/.ssh/id_rsa.pub")  # You'll need to generate SSH keys
+    public_key = var.ssh_public_key
   }
 
   os_disk {
