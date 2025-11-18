@@ -12,6 +12,9 @@ func TestRootPlan(t *testing.T) {
 	terraformOptions := &terratest_terraform.Options{
 		TerraformDir: "..",
 		PlanFilePath: "root.tfplan",
+		ExtraArgs: terratest_terraform.ExtraArgs{
+			Init: []string{"-backend=false"},
+		},
 		Vars: map[string]interface{}{
 			"resource_group_name": "rg-terratest-root",
 			"location":            "westeurope",
