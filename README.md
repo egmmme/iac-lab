@@ -84,11 +84,13 @@ iac-lab/
 
 ## 🧪 Automated Testing (3 Levels)
 
-| Level | Type        | Tools                                                   | When           |
-| ----- | ----------- | ------------------------------------------------------- | -------------- |
-| **1** | Unit        | `terraform validate`, `tflint`, `tfsec`, `ansible-lint` | Every commit   |
-| **2** | Integration | Terratest (Go), `terraform plan`                        | After level 1  |
-| **3** | E2E         | Full deploy + Smoke tests                               | On `main` only |
+| Level | Type        | Tools                                                                                    | When           |
+| ----- | ----------- | ---------------------------------------------------------------------------------------- | -------------- |
+| **1** | Unit        | `terraform validate`, `tflint`, `tfsec`, `ansible-lint`                                  | Every commit   |
+| **2** | Integration | Terratest (Go), `tfsec` (strict mode)                                                    | After level 1  |
+| **3** | E2E         | Full deploy + Ansible config + Smoke tests (HTTP 200, Nginx headers, content validation) | On `main` only |
+
+📖 Detailed testing documentation: `docs/testing.md`
 
 ## 🏗️ Terraform Modules
 
@@ -118,6 +120,8 @@ iac-lab/
 ✅ **Security**: Secret variables, dynamic SSH, automated scanning  
 ✅ **CI/CD**: Automated pipeline with GitHub Actions  
 ✅ **Remote State**: Azure Storage backend for Terraform state  
+✅ **Resource Import**: Automatic import of existing Azure resources  
+✅ **Artifact Management**: SSH keys shared between pipeline jobs  
 ✅ **Cleanup**: Automatic resource deletion after tests
 
 ## 🐛 Troubleshooting

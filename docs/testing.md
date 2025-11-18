@@ -58,21 +58,24 @@
 **Actions**:
 
 1. **Deploy Infrastructure**
+   - Automatic import of existing Azure resources (if pre-created)
    - `terraform apply` - Deploy complete stack
    - Capture outputs (VM public IP)
 2. **Configure Services**
+   - SSH keys shared via GitHub Actions artifacts
    - Run Ansible playbook (`setup_vm.yml`)
-   - Install and configure Nginx
+   - Install and configure Nginx with custom page
 3. **Smoke Tests**
    - ✅ HTTP Status 200
    - ✅ Nginx headers present
-   - ✅ Expected content on web page
+   - ✅ Expected content on web page ("Deployed with Terraform")
 
 **Success Criteria**:
 
 - ✅ Infrastructure deployed without errors
-- ✅ Services configured correctly
-- ✅ All smoke tests pass (100% success)
+- ✅ All resources imported if they already exist
+- ✅ Services configured correctly via Ansible
+- ✅ All smoke tests pass (HTTP 200, Nginx headers, content: "Deployed with Terraform")
 - ✅ Application accessible from Internet
 
 **Trigger**: Only on `main` branch after Level 2 passes
