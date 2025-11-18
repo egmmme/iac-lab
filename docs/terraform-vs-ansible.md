@@ -25,145 +25,33 @@ Terraform y Ansible son dos herramientas fundamentales en el ecosistema DevOps, 
 
 ### Usa Terraform Para:
 
-✅ **Provisionar infraestructura cloud**
-
-```hcl
-# Crear una VM en Azure
-resource "azurerm_linux_virtual_machine" "demo" {
-  name                = "vm-demo"
-  resource_group_name = azurerm_resource_group.demo.name
-  location            = "westeurope"
-  size                = "Standard_B1s"
-  # ...
-}
-```
-
-✅ **Gestionar recursos de red**
-
-- VNets, Subnets, Load Balancers
-- Security Groups, Firewalls
-- DNS, CDN
-
-✅ **Configurar servicios cloud**
-
-- Azure App Service
-- Azure Functions
-- AWS Lambda
-- Google Cloud Run
-
-✅ **Gestionar almacenamiento**
-
-- Azure Storage Accounts
-- AWS S3 Buckets
-- Google Cloud Storage
-
-✅ **Orquestar múltiples clouds (multi-cloud)**
-
-- Terraform como capa de abstracción
-- Mismo código para AWS, Azure, GCP
-
----
+✅ **Provisionar infraestructura cloud** (VMs, redes, storage)
+✅ **Gestionar recursos de red** (VNets, Load Balancers, Firewalls)
+✅ **Configurar servicios cloud** (App Services, Functions, Lambda)
+✅ **Orquestar múltiples clouds** (AWS, Azure, GCP)
 
 ### Usa Ansible Para:
 
-✅ **Configurar servidores**
-
-```yaml
-# Instalar y configurar Nginx
-- name: Instalar Nginx
-  apt:
-    name: nginx
-    state: present
-
-- name: Copiar configuración
-  template:
-    src: nginx.conf.j2
-    dest: /etc/nginx/nginx.conf
-```
-
-✅ **Gestionar software**
-
-- Instalar paquetes
-- Actualizar aplicaciones
-- Configurar servicios
-
-✅ **Automatizar tareas de mantenimiento**
-
-- Backups
-- Rotación de logs
-- Limpieza de disco
-
-✅ **Desplegar aplicaciones**
-
-- Copiar archivos
-- Reiniciar servicios
-- Ejecutar scripts
-
-✅ **Configuración drift remediation**
-
-- Asegurar que la configuración se mantiene
-- Corregir desviaciones
+✅ **Configurar servidores** (instalar software, configurar servicios)
+✅ **Gestionar aplicaciones** (despliegues, actualizaciones)
+✅ **Automatizar tareas** (backups, mantenimiento, scripts)
+✅ **Configuration drift remediation** (asegurar conformidad)
 
 ---
 
-## Diferencias Clave en Código
+## Diferencias Clave
 
-### Ejemplo 1: Crear Infraestructura
+### Creación de Infraestructura
 
-**Terraform** (Declarativo - QUÉ debe existir):
+**Terraform** (Declarativo): Define QUÉ debe existir. Gestiona ciclo completo (create, update, destroy).
 
-```hcl
-resource "azurerm_virtual_network" "main" {
-  name                = "vnet-demo"
-  address_space       = ["10.0.0.0/16"]
-  location            = "westeurope"
-  resource_group_name = azurerm_resource_group.demo.name
-}
-```
+**Ansible** (Imperativo): Define CÓMO configurar. Solo ejecuta tareas una vez.
 
-**Ansible** (Imperativo - CÓMO configurar):
+### Instalación de Software
 
-```yaml
-- name: Crear VNet en Azure
-  azure_rm_virtualnetwork:
-    name: vnet-demo
-    address_prefixes: "10.0.0.0/16"
-    location: westeurope
-    resource_group: rg-demo
-```
+**Terraform**: No recomendado. Usa `provisioners` pero no es idempotente.
 
-**Diferencia**: Terraform gestiona el ciclo de vida completo (crear, actualizar, destruir). Ansible solo ejecuta la tarea una vez.
-
----
-
-### Ejemplo 2: Instalar Software
-
-**Terraform** (No recomendado, pero posible):
-
-```hcl
-resource "null_resource" "install_nginx" {
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get update",
-      "sudo apt-get install -y nginx"
-    ]
-  }
-}
-```
-
-❌ **Problema**: Terraform no es idempotente para esta tarea. No sabe si Nginx ya está instalado.
-
-**Ansible** (Recomendado):
-
-```yaml
-- name: Instalar Nginx
-  apt:
-    name: nginx
-    state: present
-    update_cache: yes
-```
-
-✅ **Ventaja**: Ansible verifica si Nginx está instalado antes de intentar instalarlo (idempotente).
+**Ansible**: Recomendado. Verifica estado antes de actuar (idempotente).
 
 ---
 
@@ -171,186 +59,44 @@ resource "null_resource" "install_nginx" {
 
 ### Terraform State
 
-**Archivo**: `terraform.tfstate`
-
-**Contenido**:
-
-```json
-{
-  "version": 4,
-  "terraform_version": "1.6.0",
-  "resources": [
-    {
-      "type": "azurerm_virtual_network",
-      "name": "main",
-      "attributes": {
-        "id": "/subscriptions/.../vnet-demo",
-        "name": "vnet-demo",
-        "address_space": ["10.0.0.0/16"]
-      }
-    }
-  ]
-}
-```
-
-**Ventajas**:
-
-- ✅ Terraform sabe qué recursos existen
-- ✅ Puede calcular diferencias (plan)
-- ✅ Previene creación duplicada
-
-**Desventajas**:
-
-- ⚠️ Requiere backend remoto para equipos
-- ⚠️ Conflictos si múltiples usuarios modifican estado
-- ⚠️ Sensible (puede contener secrets)
+- Archivo: `terraform.tfstate` (JSON)
+- Terraform sabe qué recursos existen, puede calcular diferencias
+- Requiere backend remoto para equipos
+- Puede contener secrets (sensible)
 
 ### Ansible (Sin Estado)
 
-**No mantiene estado persistente**
-
-**Ventajas**:
-
-- ✅ Simple de usar
-- ✅ No requiere backend
-- ✅ Sin conflictos de estado
-
-**Desventajas**:
-
-- ⚠️ No sabe qué configuró previamente
-- ⚠️ Depende de checks en el sistema objetivo
-- ⚠️ Difícil detectar drift
+- No mantiene estado persistente
+- Simple, sin backend requerido
+- Depende de checks en sistemas objetivos
+- Difícil detectar drift
 
 ---
 
 ## Workflow Típico: Terraform + Ansible
 
-### 1. Provisión de Infraestructura (Terraform)
+1. **Terraform**: Provisiona infraestructura (VMs, red, storage)
+2. **Ansible**: Configura servidores (software, aplicaciones)
 
-```bash
-# Planificar cambios
-terraform plan
-
-# Aplicar cambios
-terraform apply
-
-# Outputs
-terraform output vm_public_ip
-```
-
-**Resultado**: Infraestructura lista (VM, red, storage)
+Ver `azure-pipelines.yml` para ejemplo completo.
 
 ---
 
-### 2. Configuración de Servidores (Ansible)
+## Casos de Uso Comunes
 
-```bash
-# Generar inventario dinámico
-echo "[webservers]" > inventory.ini
-echo "$(terraform output -raw vm_public_ip)" >> inventory.ini
-
-# Ejecutar playbook
-ansible-playbook -i inventory.ini setup_vm.yml
-```
-
-**Resultado**: Software instalado y configurado
-
----
-
-## Casos de Uso Reales
-
-### Caso 1: Aplicación Web en Azure
-
-**Terraform**:
-
-1. Crear Resource Group
-2. Crear VNet y Subnet
-3. Crear App Service Plan
-4. Crear App Service
-5. Configurar DNS
-
-**Ansible**:
-
-1. Desplegar código de aplicación
-2. Configurar variables de entorno
-3. Reiniciar App Service
-4. Verificar health check
-
----
-
-### Caso 2: Cluster de Kubernetes
-
-**Terraform**:
-
-1. Crear AKS cluster
-2. Configurar node pools
-3. Crear Storage Class
-4. Configurar networking
-
-**Ansible**:
-
-1. Instalar herramientas CLI (kubectl, helm)
-2. Desplegar aplicaciones con Helm
-3. Configurar monitoring (Prometheus)
-4. Setup logging (Fluentd)
-
----
-
-### Caso 3: Disaster Recovery
-
-**Terraform**:
-
-1. Crear infraestructura en región secundaria
-2. Configurar replicación de datos
-3. Setup Traffic Manager
-
-**Ansible**:
-
-1. Restaurar backups de configuración
-2. Sincronizar archivos
-3. Verificar servicios
-4. Ejecutar smoke tests
+| Escenario      | Terraform                 | Ansible                        |
+| -------------- | ------------------------- | ------------------------------ |
+| **App Web**    | Infra (VNet, App Service) | Deploy código, config env vars |
+| **Kubernetes** | Cluster AKS, networking   | Deploy apps (Helm), monitoring |
+| **DR**         | Infra región secundaria   | Restaurar backups, verificar   |
 
 ---
 
 ## Integración en CI/CD
 
-### Pipeline Típico
+Pipeline típico: Validar → Plan → Apply Terraform → Configurar con Ansible → Tests
 
-```yaml
-stages:
-  - validate
-  - plan
-  - apply
-  - configure
-  - test
-
-# Stage 1: Validar Terraform
-terraform_validate:
-  script:
-    - terraform fmt -check
-    - terraform validate
-
-# Stage 2: Plan Terraform
-terraform_plan:
-  script:
-    - terraform plan -out=plan.tfplan
-
-# Stage 3: Aplicar Terraform
-terraform_apply:
-  script:
-    - terraform apply plan.tfplan
-
-# Stage 4: Configurar con Ansible
-ansible_configure:
-  script:
-    - ansible-playbook -i inventory setup.yml
-
-# Stage 5: Smoke Tests
-smoke_tests:
-  script:
-    - curl http://$VM_IP
-```
+Ver `azure-pipelines.yml` en este repo.
 
 ---
 
@@ -358,81 +104,17 @@ smoke_tests:
 
 ### Terraform
 
-1. ✅ **Usa módulos reutilizables**
-
-   ```hcl
-   module "network" {
-     source = "./modules/network"
-   }
-   ```
-
-2. ✅ **Backend remoto para estado**
-
-   ```hcl
-   terraform {
-     backend "azurerm" {
-       storage_account_name = "tfstate"
-       container_name       = "state"
-       key                  = "prod.tfstate"
-     }
-   }
-   ```
-
-3. ✅ **Variables con validación**
-
-   ```hcl
-   variable "environment" {
-     validation {
-       condition     = contains(["dev", "prod"], var.environment)
-       error_message = "Must be dev or prod."
-     }
-   }
-   ```
-
-4. ✅ **Outputs documentados**
-   ```hcl
-   output "vm_ip" {
-     description = "Public IP of the VM"
-     value       = azurerm_public_ip.main.ip_address
-   }
-   ```
-
----
+1. ✅ Usa módulos reutilizables
+2. ✅ Backend remoto para estado (Azure Storage, Terraform Cloud)
+3. ✅ Variables con validación
+4. ✅ Outputs documentados
 
 ### Ansible
 
-1. ✅ **Usa roles reutilizables**
-
-   ```yaml
-   roles:
-     - common
-     - webserver
-     - monitoring
-   ```
-
-2. ✅ **Variables encriptadas con Vault**
-
-   ```bash
-   ansible-vault encrypt secrets.yml
-   ```
-
-3. ✅ **Handlers para reiniciar servicios**
-
-   ```yaml
-   handlers:
-     - name: restart nginx
-       service:
-         name: nginx
-         state: restarted
-   ```
-
-4. ✅ **Tags para ejecución selectiva**
-   ```yaml
-   - name: Instalar Nginx
-     apt:
-       name: nginx
-     tags: [webserver, install]
-   ```
+1. ✅ Usa roles reutilizables
+2. ✅ Encripta secrets con Ansible Vault
+3. ✅ Handlers para reiniciar servicios
+4. ✅ Tags para ejecución selectiva
 
 ---
 

@@ -25,31 +25,11 @@ Esta guía te ayudará a configurar el proyecto desde cero.
 El Service Principal permite que Azure DevOps interactúe con Azure.
 
 ```bash
-# Login en Azure
 az login
-
-# Obtener tu Subscription ID
-az account show --query id -o tsv
-
-# Crear Service Principal
-az ad sp create-for-rbac \
-  --name "terraform-ansible-demo" \
-  --role Contributor \
-  --scopes /subscriptions/{TU_SUBSCRIPTION_ID}
+az ad sp create-for-rbac --name "terraform-ansible-demo" --role Contributor
 ```
 
-**Output esperado**:
-
-```json
-{
-  "appId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "displayName": "terraform-ansible-demo",
-  "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "tenant": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
-```
-
-⚠️ **Importante**: Guarda estos valores de forma segura, los necesitarás para Azure DevOps.
+⚠️ **Importante**: Guarda el output (appId, password, tenant) para Azure DevOps.
 
 ---
 
@@ -69,17 +49,11 @@ az ad sp create-for-rbac \
 | `azureTenant`                   | `tenant` del paso anterior   | Secret | Tenant ID            |
 | `azureSubscriptionId`           | Tu Subscription ID           | Normal | ID de tu suscripción |
 
-#### Opción B: Variable Groups (Recomendado para producción)
+#### Opción B: Variable Groups (Producción)
 
-1. Ve a **Pipelines** → **Library** → **+ Variable group**
-2. Nombre del grupo: `azure-credentials`
-3. Agrega las mismas variables del paso anterior
-4. En tu pipeline YAML, referencia el grupo:
-
-```yaml
-variables:
-  - group: azure-credentials
-```
+1. **Pipelines** → **Library** → **+ Variable group** (`azure-credentials`)
+2. Agrega las mismas variables
+3. Referencia en YAML: `variables: - group: azure-credentials`
 
 ---
 
@@ -114,39 +88,16 @@ iac-lab/
 
 ### 4. Personalizar Variables (Opcional)
 
-Edita `variables.tf` para ajustar valores por defecto:
+Edita `variables.tf` para cambiar región (`location`), tamaño de VM (`vm_size`), etc.
 
-```hcl
-variable "location" {
-  default = "westeurope"  # Cambia según tu región preferida
-}
-
-variable "vm_size" {
-  default = "Standard_B1s"  # Ajusta según necesidades
-}
-```
-
-**Regiones recomendadas**:
-
-- `westeurope` - Europa (Ámsterdam)
-- `eastus` - EE.UU. Este (Virginia)
-- `southeastasia` - Asia Sudeste (Singapur)
+**Regiones**: `westeurope`, `eastus`, `southeastasia`
 
 ---
 
 ### 5. Validar Configuración Local (Opcional)
 
-Antes de ejecutar el pipeline, puedes validar localmente:
-
 ```bash
-# Formatear código Terraform
-terraform fmt -recursive
-
-# Validar sintaxis
-terraform init
-terraform validate
-
-# Validar Ansible playbook
+terraform fmt -recursive && terraform validate
 ansible-lint setup_vm.yml
 ```
 
@@ -235,41 +186,13 @@ az vm list-sizes --location westeurope --query "[?name=='Standard_B1s']"
 
 ## Configuración Avanzada
 
-### Backend Remoto para Terraform State
+### Backend Remoto
 
-Para producción, configura un backend remoto:
-
-```hcl
-# backend.tf
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "rg-terraform-state"
-    storage_account_name = "tfstatexxxxx"
-    container_name       = "tfstate"
-    key                  = "iac-lab.terraform.tfstate"
-  }
-}
-```
+Crea `backend.tf` con configuración de Azure Storage para el estado de Terraform.
 
 ### Múltiples Entornos
 
-Crea archivos de variables por entorno:
-
-```
-├── environments/
-│   ├── dev.tfvars
-│   ├── staging.tfvars
-│   └── prod.tfvars
-```
-
-Ejemplo `dev.tfvars`:
-
-```hcl
-environment         = "dev"
-vm_size             = "Standard_B1s"
-location            = "westeurope"
-resource_group_name = "rg-iac-lab-dev"
-```
+Usa archivos `.tfvars` separados (`dev.tfvars`, `prod.tfvars`) con variables específicas.
 
 ---
 

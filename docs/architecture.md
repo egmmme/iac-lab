@@ -108,69 +108,24 @@ Este proyecto implementa una arquitectura modular para infraestructura como cód
 | ✅ **Separación de Responsabil.** | Network, Security y Compute desacoplados               |
 | ✅ **Escalabilidad**              | Fácil agregar nuevos módulos (Storage, Database, etc.) |
 
-## Ejemplo de Uso de Módulos
+## Uso de Módulos
+
+Los módulos se invocan desde `main.tf` pasando los outputs de unos a otros:
 
 ```hcl
-# main.tf - Orquestador
 module "network" {
   source = "./modules/network"
-
-  resource_group_name = azurerm_resource_group.demo.name
-  location            = azurerm_resource_group.demo.location
-  vnet_name           = "vnet-${var.environment}"
-  address_space       = ["10.0.0.0/16"]
-  subnet_prefixes     = ["10.0.1.0/24"]
-}
-
-module "security" {
-  source = "./modules/security"
-
-  resource_group_name = azurerm_resource_group.demo.name
-  location            = azurerm_resource_group.demo.location
-  nsg_name            = "nsg-${var.environment}"
-  security_rules      = var.security_rules
+  # ... variables
 }
 
 module "compute" {
   source = "./modules/compute"
-
-  # Usa outputs de otros módulos
-  subnet_id           = module.network.subnet_id
-  public_ip_id        = module.network.public_ip_id
-  nsg_id              = module.security.nsg_id
-
-  resource_group_name = azurerm_resource_group.demo.name
-  location            = azurerm_resource_group.demo.location
-  vm_name             = "vm-${var.environment}"
-  admin_username      = var.admin_username
-  ssh_public_key      = var.ssh_public_key
+  subnet_id = module.network.subnet_id  # Usa output de network
+  # ... más variables
 }
 ```
 
-## Flujo de Dependencias
-
-```
-┌─────────────────┐
-│ Resource Group  │
-└────────┬────────┘
-         │
-         ├──────────────┬────────────────┐
-         │              │                │
-         ▼              ▼                ▼
-┌─────────────┐  ┌─────────────┐  ┌──────────────┐
-│   Network   │  │  Security   │  │   (Waiting)  │
-│   Module    │  │   Module    │  │              │
-└──────┬──────┘  └──────┬──────┘  │              │
-       │                │         │              │
-       │ outputs        │ outputs │              │
-       └────────┬───────┴─────────┘              │
-                │                                │
-                ▼                                ▼
-         ┌─────────────┐                  ┌──────────────┐
-         │   Compute   │                  │   Compute    │
-         │   Module    │◄─────────────────│   Module     │
-         └─────────────┘                  └──────────────┘
-```
+Ver `main.tf` para el ejemplo completo.
 
 ## Gestión de Estado
 
