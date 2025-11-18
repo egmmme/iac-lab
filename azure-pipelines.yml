@@ -96,6 +96,67 @@ stages:
               go mod download
               go test -v -timeout 30m ./...
             displayName: "🧪 Ejecutar Terratest (plan)"
+
+      # ================================================================
+      # JOB 4: CLEANUP - Destruir recursos de prueba
+      # ================================================================
+      - job: CleanupTestResources
+        displayName: "🧹 Cleanup Test Resources"
+        dependsOn: 
+          - TerraformLint
+          - AnsibleLint  
+          - Terratest
+        condition: always()  # Ejecutar siempre, incluso si tests fallan
+        steps:
+          - script: |
+              set -e
+              
+              # Login a Azure
+              az login --service-principal \
+                -u $(azureServicePrincipalUsername) \
+                -p $(azureServicePrincipalPassword) \
+                --tenant $(azureTenant)
+              
+              # Variables de entorno para Terraform
+              export ARM_CLIENT_ID=$(azureServicePrincipalUsername)
+              export ARM_CLIENT_SECRET=$(azureServicePrincipalPassword)
+              export ARM_TENANT_ID=$(azureTenant)
+              export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+              
+              echo "🧹 Limpiando recursos de Terratest..."
+              
+              # Buscar y destruir resource groups de prueba
+              echo "Buscando resource groups de prueba..."
+              TEST_RGS=$(az group list --query "[?starts_with(name, 'terratest-')].name" -o tsv)
+              
+              if [ -z "$TEST_RGS" ]; then
+                echo "✅ No hay resource groups de prueba para limpiar"
+              else
+                echo "Encontrados resource groups de prueba:"
+                echo "$TEST_RGS"
+                
+                # Eliminar cada resource group
+                for rg in $TEST_RGS; do
+                  echo "🗑️ Eliminando resource group: $rg"
+                  az group delete --name "$rg" --yes --no-wait || echo "⚠️ No se pudo eliminar $rg"
+                done
+                
+                echo "✅ Comandos de eliminación enviados (ejecución asíncrona)"
+              fi
+              
+              # Cleanup adicional: buscar recursos huérfanos por tags
+              echo "Verificando recursos con tag terratest=true..."
+              ORPHAN_RESOURCES=$(az resource list --tag terratest=true --query "[].id" -o tsv)
+              
+              if [ -n "$ORPHAN_RESOURCES" ]; then
+                echo "⚠️ Recursos huérfanos encontrados (eliminar manualmente si persisten):"
+                echo "$ORPHAN_RESOURCES"
+              fi
+              
+              echo "🎉 Proceso de limpieza completado"
+            displayName: "🗑️ Destroy Test Resources"
+            continueOnError: true
+
   # ================================================================
   # STAGE 1: TERRAFORM - Provisionar Infraestructura
   # ================================================================
