@@ -14,6 +14,10 @@ env:
   ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  TF_STATE_RG: ${{ secrets.TF_STATE_RG }}
+  TF_STATE_STORAGE: ${{ secrets.TF_STATE_STORAGE }}
+  TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+  TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 
 jobs:
   # ================================================================
@@ -162,7 +166,33 @@ jobs:
           chmod 644 ~/.ssh/id_rsa.pub
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          echo "🔐 Ensure remote state resources (idempotent)"
+          az group create -n $TF_STATE_RG -l "West Europe" --tags managedBy=terraform || true
+          az storage account create --name $TF_STATE_STORAGE --resource-group $TF_STATE_RG --location "West Europe" --sku Standard_LRS --kind StorageV2 --allow-blob-public-access false || true
+          az storage container create --name $TF_STATE_CONTAINER --account-name $TF_STATE_STORAGE --auth-mode login || true
+
+          echo "📦 terraform init with remote backend"
+          terraform init \
+            -backend-config="resource_group_name=$TF_STATE_RG" \
+            -backend-config="storage_account_name=$TF_STATE_STORAGE" \
+            -backend-config="container_name=$TF_STATE_CONTAINER" \
+            -backend-config="key=$TF_STATE_KEY"
+
+      - name: Import Existing Resource Group (if pre-created)
+        run: |
+          if ! terraform state list | grep -q azurerm_resource_group.demo; then
+            echo "🔄 Checking for pre-existing resource group $RESOURCE_GROUP to import into state..."
+            if az group show -n $RESOURCE_GROUP >/dev/null 2>&1; then
+              echo "➡️ Importing $RESOURCE_GROUP into Terraform state"
+              terraform import azurerm_resource_group.demo /subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP || {
+                echo "❌ Import failed"; exit 1; }
+            else
+              echo "ℹ️ Resource group $RESOURCE_GROUP not found; Terraform will create it."
+            fi
+          else
+            echo "✅ Resource group already in state; skipping import."
+          fi
 
       - name: Terraform Plan
         run: |

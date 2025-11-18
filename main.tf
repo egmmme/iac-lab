@@ -17,6 +17,9 @@
 terraform {
   required_version = ">= 1.6.0"
 
+  # Remote backend for shared state (configure via -backend-config flags in CI)
+  backend "azurerm" {}
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
