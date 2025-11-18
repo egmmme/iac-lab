@@ -55,8 +55,10 @@ stages:
               tflint --recursive
             displayName: "🔍 TFLint (Terraform Lint)"
           - script: |
-              tfsec .
-            displayName: "🛡️ tfsec (Security Scan)"
+              echo "🛡️ Ejecutando tfsec (Security Scan)..."
+              tfsec . --soft-fail || echo "⚠️ Vulnerabilidades encontradas (no bloqueante en Nivel 1)"
+            displayName: "🛡️ tfsec (Security Scan - soft-fail)"
+            continueOnError: "true"
 
       - job: AnsibleLint
         displayName: "Ansible - Sintaxis y Best Practices"
@@ -81,9 +83,29 @@ stages:
     dependsOn: UnitTests
     condition: succeeded()
     jobs:
+      # Security Scan - Escaneo estricto de seguridad (bloquea si falla)
+      - job: SecurityScan
+        displayName: "Escaneo de Seguridad - tfsec (strict)"
+        steps:
+          - script: |
+              curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+              tfsec --version
+            displayName: "📦 Instalar tfsec"
+          - script: |
+              echo "🛡️ Ejecutando tfsec en modo estricto..."
+              tfsec . --format default --minimum-severity MEDIUM
+              if [ $? -ne 0 ]; then
+                echo "❌ Vulnerabilidades MEDIUM o superiores encontradas"
+                echo "Revisar y corregir antes de continuar a E2E"
+                exit 1
+              fi
+              echo "✅ Sin vulnerabilidades críticas"
+            displayName: "🔒 tfsec Security Scan (strict mode)"
+
       # Terratest - Pruebas unitarias de módulos con plan
       - job: TerratestModules
         displayName: "Terratest - Plan de módulos individuales"
+        dependsOn: SecurityScan
         steps:
           - script: |
               sudo apt-get update
@@ -179,7 +201,7 @@ stages:
               fi
               echo "✅ Limpieza completada"
             displayName: "🗑️ Destruir recursos de prueba"
-            continueOnError: true
+            continueOnError: "true"
 
   # ================================================================
   # NIVEL 3: PRUEBAS E2E POR ENTORNO
