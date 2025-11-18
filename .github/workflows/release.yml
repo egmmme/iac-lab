@@ -1,0 +1,85 @@
+name: Automated Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name (e.g. v2.0.1) to release"
+        required: true
+      generate_tag:
+        description: "Generate tag from version (true/false)"
+        required: false
+        default: "false"
+      version:
+        description: "Version (e.g. 2.0.2) if generate_tag=true"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.generate_tag }}" = "true" ]; then
+              echo "ref_tag=v${{ inputs.version }}" >> $GITHUB_OUTPUT
+              git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }} (automated)"
+              git push origin "v${{ inputs.version }}"
+            else
+              echo "ref_tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            fi
+          else
+            TAG_REF="${GITHUB_REF#refs/tags/}"
+            echo "ref_tag=$TAG_REF" >> $GITHUB_OUTPUT
+          fi
+          echo "Using tag: $(grep ref_tag $GITHUB_OUTPUT | cut -d= -f2)"
+
+      - name: Extract release notes section
+        id: notes
+        run: |
+          TAG="${{ steps.tag.outputs.ref_tag }}"
+          if [ ! -f RELEASE_NOTES.md ]; then
+            echo "No release notes file found. Generating from commits." > RELEASE_SECTION.md
+            git log -50 --pretty=format:'- %h %s' >> RELEASE_SECTION.md
+          else
+            # Extract section starting at header for tag until next header or EOF
+            awk '/^##[ ]+'"$TAG"'[ ]/ {flag=1;next} /^##[ ]v/ {if(flag){flag=0}} flag {print}' RELEASE_NOTES.md > RELEASE_SECTION.md || true
+            if [ ! -s RELEASE_SECTION.md ]; then
+              echo "(No dedicated section; showing recent commits)" > RELEASE_SECTION.md
+              git log -50 --pretty=format:'- %h %s' >> RELEASE_SECTION.md
+            fi
+          fi
+          echo '--- RELEASE NOTES START ---'
+          cat RELEASE_SECTION.md
+          echo '--- RELEASE NOTES END ---'
+          NOTES_ESCAPED=$(sed "s/'/\'\'/g" RELEASE_SECTION.md | tr '\n' '\r')
+          echo "section_path=RELEASE_SECTION.md" >> $GITHUB_OUTPUT
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.ref_tag }}
+          body_path: RELEASE_SECTION.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "✅ Published release for tag ${{ steps.tag.outputs.ref_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "Notes excerpt:" >> $GITHUB_STEP_SUMMARY
+          head -20 RELEASE_SECTION.md >> $GITHUB_STEP_SUMMARY
