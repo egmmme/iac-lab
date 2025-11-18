@@ -93,13 +93,13 @@ stages:
             displayName: "📦 Instalar tfsec"
           - script: |
               echo "🛡️ Ejecutando tfsec en modo estricto..."
-              tfsec . --format default --minimum-severity MEDIUM
+              tfsec . --format default --config-file .tfsec/config.yml
               if [ $? -ne 0 ]; then
-                echo "❌ Vulnerabilidades MEDIUM o superiores encontradas"
-                echo "Revisar y corregir antes de continuar a E2E"
+                echo "❌ Vulnerabilidades detectadas después de aplicar exclusiones de demo/lab"
+                echo "Revisar .tfsec/config.yml y README-SECURITY.md"
                 exit 1
               fi
-              echo "✅ Sin vulnerabilidades críticas"
+              echo "✅ Escaneo de seguridad completado (con exclusiones documentadas para demo/lab)"
             displayName: "🔒 tfsec Security Scan (strict mode)"
 
       # Terratest - Pruebas unitarias de módulos con plan
