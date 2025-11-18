@@ -190,14 +190,12 @@ stages:
               sudo apt-get install -y ansible
               ansible --version
             displayName: "📦 Instalar Ansible"
-
           # Descargar claves SSH del stage anterior
           - task: DownloadPipelineArtifact@2
-            inputs:
-              artifact: "sshkeys"
-              path: "$(Pipeline.Workspace)/sshkeys"
             displayName: "📥 Descargar claves SSH"
-
+            inputs:
+              artifactName: "sshkeys"
+              targetPath: "$(Pipeline.Workspace)/sshkeys"
           # Restaurar claves SSH
           - script: |
               mkdir -p ~/.ssh

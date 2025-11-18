@@ -27,5 +27,8 @@ func TestRootPlan(t *testing.T) {
 	}
 
 	plan := terratest_terraform.InitAndPlanAndShowWithStruct(t, terraformOptions)
-	assert.Greater(t, len(plan.ResourceChanges), 0, "root plan should have resource changes")
+	
+	// Fixed: ResourceChangesMap is directly on plan struct, not in RawPlan
+	assert.NotNil(t, plan.ResourceChangesMap, "plan should not be nil")
+	assert.Greater(t, len(plan.ResourceChangesMap), 0, "root plan should have resource changes")
 }
