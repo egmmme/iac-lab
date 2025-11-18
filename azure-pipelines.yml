@@ -300,7 +300,11 @@ stages:
                 RETRY_COUNT=$((RETRY_COUNT + 1))
                 [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 10
               done
-              [ $RETRY_COUNT -eq $MAX_RETRIES ] && exit 1
+              # Evitar 'set -e' rompiendo por un test falso: usar if explícito
+              if [ "$RETRY_COUNT" -eq "$MAX_RETRIES" ]; then
+                echo "❌ No se pudo establecer conexión SSH tras $MAX_RETRIES intentos"
+                exit 1
+              fi
             displayName: "🔌 Esperar conexión SSH"
           - script: |
               ansible-playbook -i inventory.ini setup_vm.yml -v
