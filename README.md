@@ -70,12 +70,33 @@ iac-lab/
 ├── variables.tf                     # Configuration variables
 ├── outputs.tf                       # Deployment outputs
 ├── setup_vm.yml                     # Ansible playbook
-├── .github/workflows/
-│   └── terraform-ansible.yml        # CI/CD pipeline (3-level testing)
+├── README.md                        # Project overview (this file)
+├── README-SECURITY.md               # Security notes for production
+├── .ansible-lint.yml                # Ansible lint configuration
+├── .tflint.hcl                      # TFLint configuration
+├── .tfsec/                          # tfsec configuration
+├── .github/
+│   ├── workflows/
+│   │   └── terraform-ansible.yml    # CI/CD pipeline (3-level testing)
+│   └── scripts/                     # Modular workflow scripts
+│       ├── terraform/
+│       │   ├── init.sh              # Bootstrap remote state & terraform init
+│       │   └── import-resources.sh  # Import existing Azure resources
+│       ├── ssh/
+│       │   ├── setup-keys.sh        # Generate SSH key pair
+│       │   └── restore-keys.sh      # Restore SSH keys from artifacts
+│       ├── ansible/
+│       │   ├── create-inventory.sh  # Generate Ansible inventory file
+│       │   └── wait-for-ssh.sh      # Wait for VM SSH availability
+│       └── testing/
+│           └── smoke-tests.sh       # E2E HTTP validation tests
 ├── modules/                         # Reusable Terraform modules
 │   ├── network/                     # VNet, Subnet, Public IP
 │   ├── security/                    # NSG, Security Rules
 │   └── compute/                     # VM, NIC, SSH Config
+├── docs/                            # Architecture and testing docs
+│   ├── architecture.md
+│   └── testing.md
 └── tests/                           # Integration tests (Terratest)
     ├── network_test.go
     ├── security_test.go
