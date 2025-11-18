@@ -49,7 +49,7 @@ variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)
   default = {
-    proyecto    = "terraform-ansible-demo"
+    project     = "terraform-ansible-demo"
     managedBy   = "terraform"
     environment = "demo"
   }

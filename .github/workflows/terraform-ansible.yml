@@ -240,6 +240,8 @@ jobs:
     needs: [deploy-infrastructure, configure-services]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
+      - uses: actions/checkout@v4
+
       - name: Test HTTP Status
         env:
           VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
