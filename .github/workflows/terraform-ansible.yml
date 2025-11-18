@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: iac-lab-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   RESOURCE_GROUP: rg-terraform-ansible-demo
   VM_NAME: vm-demo
@@ -174,13 +178,13 @@ jobs:
 
       - name: Terraform Plan
         run: |
-          terraform plan \
+          terraform plan -lock-timeout=5m \
             -var="admin_username=azureuser" \
             -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
             -out=tfplan
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -lock-timeout=5m -auto-approve tfplan
 
       - name: Get Terraform Outputs
         id: terraform-output
@@ -297,7 +301,7 @@ jobs:
           ssh-keygen -t rsa -b 4096 -f ephemeral_key -N "" >/dev/null 2>&1
           EPHEMERAL_KEY=$(cat ephemeral_key.pub)
           echo "✅ Ephemeral key generated"
-          terraform destroy -auto-approve \
+          terraform destroy -lock-timeout=5m -auto-approve \
             -var="admin_username=azureuser" \
             -var="ssh_public_key=${EPHEMERAL_KEY}" || true
           rm -f ephemeral_key ephemeral_key.pub

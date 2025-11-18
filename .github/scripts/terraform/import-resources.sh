@@ -26,6 +26,9 @@ readonly TF_VARS=(
   -var="admin_username=$ADMIN_USERNAME"
   -var="ssh_public_key=$SSH_KEY"
 )
+readonly TF_LOCK=(
+  -lock-timeout=5m
+)
 
 echo "🔍 Checking current Terraform state..."
 terraform state list || echo "State is empty"
@@ -46,7 +49,7 @@ import_resource() {
 
   if eval "$check_command" >/dev/null 2>&1; then
     echo "➡️ Importing $resource_name"
-    terraform import "${TF_VARS[@]}" "$tf_address" "$azure_id" || echo "⚠️ Import failed for $resource_name"
+    terraform import "${TF_LOCK[@]}" "${TF_VARS[@]}" "$tf_address" "$azure_id" || echo "⚠️ Import failed for $resource_name"
   fi
 }
 
