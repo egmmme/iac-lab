@@ -456,7 +456,7 @@ jobs:
 
           # Test 3: Content Check
           echo "Test 3: Verify content..."
-          if curl -s http://$VM_IP | grep -i "Welcome"; then
+          if curl -s http://$VM_IP | grep -i "Deployed with Terraform"; then
             echo "✅ Content correct"
           else
             echo "❌ Content not found"
