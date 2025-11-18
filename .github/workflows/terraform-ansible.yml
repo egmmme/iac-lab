@@ -283,6 +283,51 @@ jobs:
             fi
           fi
 
+          # Import Network Interface
+          if ! terraform state list 2>/dev/null | grep -q "module.compute.azurerm_network_interface.main"; then
+            NIC_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkInterfaces/nic-demo"
+            if az network nic show --ids "$NIC_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing Network Interface: nic-demo"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.compute.azurerm_network_interface.main \
+                "$NIC_ID" || echo "⚠️ NIC import failed"
+            fi
+          else
+            echo "✅ NIC already in state"
+          fi
+
+          # Import NIC-NSG Association
+          if ! terraform state list 2>/dev/null | grep -q "module.compute.azurerm_network_interface_security_group_association.main"; then
+            NIC_NSG_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkInterfaces/nic-demo|/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo"
+            if az network nic show --ids "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkInterfaces/nic-demo" >/dev/null 2>&1; then
+              echo "➡️ Importing NIC-NSG Association"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.compute.azurerm_network_interface_security_group_association.main \
+                "$NIC_NSG_ID" || echo "⚠️ NIC-NSG association import failed"
+            fi
+          else
+            echo "✅ NIC-NSG association already in state"
+          fi
+
+          # Import Virtual Machine
+          if ! terraform state list 2>/dev/null | grep -q "module.compute.azurerm_linux_virtual_machine.main"; then
+            VM_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Compute/virtualMachines/vm-demo"
+            if az vm show --ids "$VM_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing Virtual Machine: vm-demo"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.compute.azurerm_linux_virtual_machine.main \
+                "$VM_ID" || echo "⚠️ VM import failed"
+            fi
+          else
+            echo "✅ VM already in state"
+          fi
+
           echo ""
           echo "📋 Final state list:"
           terraform state list || echo "No resources in state"
