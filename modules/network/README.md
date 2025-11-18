@@ -134,7 +134,7 @@ Si compartes este módulo entre equipos, versiona en un repositorio independient
 
 ```hcl
 module "network" {
-  source  = "git::https://dev.azure.com/org/project/_git/terraform-modules//network?ref=v1.0.0"
+  source  = "github.com/egmmme/iac-lab//modules/network?ref=v1.0.0"
   # ...
 }
 ```

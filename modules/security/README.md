@@ -263,7 +263,7 @@ Verifica que el NSG esté asociado:
 
 ```hcl
 module "security" {
-  source = "git::https://dev.azure.com/org/project/_git/terraform-modules//security?ref=v1.0.0"
+  source = "github.com/egmmme/iac-lab//modules/security?ref=v1.0.0"
   # ...
 }
 ```

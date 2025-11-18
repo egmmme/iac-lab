@@ -1,12 +1,12 @@
 # 🚀 IaC Lab - Terraform + Ansible en Azure
 
-Proyecto de demostración de infraestructura como código (IaC) usando **Terraform** y **Ansible** con arquitectura modular, testing automatizado y CI/CD en Azure DevOps.
+Proyecto de demostración de infraestructura como código (IaC) usando **Terraform** y **Ansible** con arquitectura modular, testing automatizado y CI/CD en GitHub Actions.
 
 ## 🎯 ¿Qué hace este proyecto?
 
 1. **Terraform** crea la infraestructura en Azure (VNet, VM, NSG)
 2. **Ansible** configura el servidor (instala Nginx)
-3. **Azure DevOps** ejecuta todo automáticamente con testing en 3 niveles
+3. **GitHub Actions** ejecuta todo automáticamente con testing en 3 niveles
 
 **Resultado**: Servidor web funcional en Azure con validación, testing y deployment automatizados.
 
@@ -14,9 +14,9 @@ Proyecto de demostración de infraestructura como código (IaC) usando **Terrafo
 
 ```bash
 # 1. Clonar repositorio
-git clone https://dev.azure.com/{org}/{project}/_git/iac-lab
+git clone https://github.com/egmmme/iac-lab.git
 
-# 2. Configurar Service Principal en Azure DevOps
+# 2. Configurar Service Principal en GitHub Secrets
 # Ver guía completa: docs/setup-guide.md
 
 # 3. Push a main para ejecutar el pipeline
@@ -37,7 +37,9 @@ iac-lab/
 ├── variables.tf             # Variables de configuración
 ├── outputs.tf               # Outputs del deployment
 ├── setup_vm.yml             # Playbook de Ansible
-├── azure-pipelines.yml      # Pipeline CI/CD (3 niveles de testing)
+├── .github/
+│   └── workflows/
+│       └── terraform-ansible.yml  # GitHub Actions workflow (3 niveles de testing)
 ├── modules/                 # Módulos Terraform reutilizables
 │   ├── network/             # VNet, Subnet, Public IP
 │   ├── security/            # NSG, Security Rules
@@ -92,7 +94,7 @@ iac-lab/
 ✅ **Validación**: Formato, sintaxis, seguridad (tfsec)  
 ✅ **Testing**: 3 niveles (Unit, Integration, E2E)  
 ✅ **Seguridad**: Variables secretas, SSH dinámico, escaneo automático  
-✅ **CI/CD**: Pipeline automatizado en Azure DevOps  
+✅ **CI/CD**: Pipeline automatizado con GitHub Actions  
 ✅ **Documentación**: README por módulo + guías en `docs/`  
 ✅ **Cleanup**: Eliminación automática de recursos de test
 

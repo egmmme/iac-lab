@@ -356,7 +356,7 @@ az network public-ip show --name <pip-name> -g <rg-name> --query ipAddress
 
 ```hcl
 module "compute" {
-  source = "git::https://dev.azure.com/org/project/_git/terraform-modules//compute?ref=v1.0.0"
+  source = "github.com/egmmme/iac-lab//modules/compute?ref=v1.0.0"
   # ...
 }
 ```

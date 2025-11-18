@@ -134,7 +134,7 @@ graph TD
 
 ### ✅ Datos Sensibles
 
-- Variables secretas en Azure DevOps (no hardcodeadas)
+- Variables secretas en GitHub Secrets (no hardcodeadas)
 - SSH keys gestionadas como artefactos de pipeline
 - Credenciales de Service Principal en variables secretas
 

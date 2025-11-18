@@ -11,49 +11,41 @@ Esta guía te ayudará a configurar el proyecto desde cero.
 - [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/) v2.10+
 - Git v2.30+
 - Cuenta de Azure activa
-- Proyecto de Azure DevOps
+- Cuenta de GitHub
 
 ### Permisos Necesarios
 
 - **Azure**: Contributor en la suscripción
-- **Azure DevOps**: Permisos de administrador en el proyecto
+- **GitHub**: Permisos de administrador en el repositorio
 
 ## Configuración Paso a Paso
 
 ### 1. Crear Service Principal en Azure
 
-El Service Principal permite que Azure DevOps interactúe con Azure.
+El Service Principal permite que GitHub Actions interactúe con Azure.
 
 ```bash
 az login
 az ad sp create-for-rbac --name "terraform-ansible-demo" --role Contributor
 ```
 
-⚠️ **Importante**: Guarda el output (appId, password, tenant) para Azure DevOps.
+⚠️ **Importante**: Guarda el output (appId, password, tenant) para GitHub Secrets.
 
 ---
 
-### 2. Configurar Variables en Azure DevOps
+### 2. Configurar Secrets en GitHub
 
-#### Opción A: Variables de Pipeline (Recomendado para demo)
+1. Ve a tu repositorio en GitHub: https://github.com/egmmme/iac-lab
+2. Navega a **Settings** → **Secrets and variables** → **Actions**
+3. Click en **New repository secret**
+4. Agrega los siguientes secrets:
 
-1. Ve a tu proyecto en Azure DevOps
-2. Navega a **Pipelines** → Selecciona tu pipeline
-3. Click en **Edit** → **Variables** → **New variable**
-4. Agrega las siguientes variables:
-
-| Nombre de Variable              | Valor                        | Tipo   | Notas                |
-| ------------------------------- | ---------------------------- | ------ | -------------------- |
-| `azureServicePrincipalUsername` | `appId` del paso anterior    | Secret | App ID del SP        |
-| `azureServicePrincipalPassword` | `password` del paso anterior | Secret | Password del SP      |
-| `azureTenant`                   | `tenant` del paso anterior   | Secret | Tenant ID            |
-| `azureSubscriptionId`           | Tu Subscription ID           | Normal | ID de tu suscripción |
-
-#### Opción B: Variable Groups (Producción)
-
-1. **Pipelines** → **Library** → **+ Variable group** (`azure-credentials`)
-2. Agrega las mismas variables
-3. Referencia en YAML: `variables: - group: azure-credentials`
+| Nombre del Secret       | Valor                        | Notas                |
+| ----------------------- | ---------------------------- | -------------------- |
+| `AZURE_CLIENT_ID`       | `appId` del paso anterior    | App ID del SP        |
+| `AZURE_CLIENT_SECRET`   | `password` del paso anterior | Password del SP      |
+| `AZURE_TENANT_ID`       | `tenant` del paso anterior   | Tenant ID            |
+| `AZURE_SUBSCRIPTION_ID` | Tu Subscription ID           | ID de tu suscripción |
 
 ---
 
@@ -61,7 +53,7 @@ az ad sp create-for-rbac --name "terraform-ansible-demo" --role Contributor
 
 ```bash
 # Clonar el repositorio
-git clone https://dev.azure.com/{TU_ORG}/{TU_PROJECT}/_git/iac-lab
+git clone https://github.com/egmmme/iac-lab.git
 cd iac-lab
 
 # Verificar la estructura
@@ -76,7 +68,9 @@ iac-lab/
 ├── variables.tf
 ├── outputs.tf
 ├── setup_vm.yml
-├── azure-pipelines.yml
+├── .github/
+│   └── workflows/
+│       └── terraform-ansible.yml
 ├── modules/
 │   ├── network/
 │   ├── security/
@@ -103,7 +97,20 @@ ansible-lint setup_vm.yml
 
 ---
 
-### 6. Ejecutar el Pipeline
+### 6. Verificar GitHub Secrets
+
+Antes de ejecutar el workflow, verifica que todos los secrets estén configurados:
+
+1. Ve a https://github.com/egmmme/iac-lab/settings/secrets/actions
+2. Verifica que existan los 4 secrets requeridos:
+   - ✅ `AZURE_CLIENT_ID`
+   - ✅ `AZURE_CLIENT_SECRET`
+   - ✅ `AZURE_TENANT_ID`
+   - ✅ `AZURE_SUBSCRIPTION_ID`
+
+Si falta alguno, agrégalo según las instrucciones del **Paso 2** de esta guía.
+
+### 7. Ejecutar el Workflow
 
 #### Primera Ejecución
 
@@ -115,15 +122,23 @@ git commit -m "Initial setup"
 git push origin main
 ```
 
-2. El pipeline se ejecutará automáticamente
-3. Monitorea la ejecución en **Pipelines** → **Runs**
+2. El workflow se ejecutará automáticamente
+3. Monitorea la ejecución en https://github.com/egmmme/iac-lab/actions
 
 #### Ejecuciones Siguientes
 
-Cada push a `main` ejecuta el pipeline completo:
+Cada push a `main` ejecuta el workflow completo:
 
-- ✅ Validaciones (Nivel 1)
-- ✅ Tests de integración (Nivel 2)
+- ✅ Validaciones (Nivel 1: lint, security scan)
+- ✅ Tests de integración (Nivel 2: Terratest)
+- ✅ Deploy E2E (Nivel 3: infraestructura + configuración + smoke tests)
+
+También puedes ejecutarlo manualmente:
+
+1. Ve a https://github.com/egmmme/iac-lab/actions
+2. Selecciona **Terraform & Ansible CI/CD**
+3. Click en **Run workflow** → **Run workflow**
+
 - ✅ Deploy E2E (Nivel 3)
 
 ---
@@ -132,8 +147,8 @@ Cada push a `main` ejecuta el pipeline completo:
 
 Una vez completado el pipeline:
 
-1. Ve a la última ejecución en Azure DevOps
-2. En el stage **E2E Tests**, busca el output de **Smoke Tests**
+1. Ve a la última ejecución en GitHub: https://github.com/egmmme/iac-lab/actions
+2. En el job **Smoke Tests E2E**, busca el output
 3. Copia la IP pública mostrada en los logs
 4. Abre tu navegador: `http://<IP_PUBLICA>`
 
@@ -248,6 +263,6 @@ Una vez configurado el proyecto básico:
 
 ## Soporte
 
-- 📧 Problemas técnicos: Abre un issue en Azure DevOps
+- 📧 Problemas técnicos: Abre un issue en GitHub: https://github.com/egmmme/iac-lab/issues
 - 📚 Documentación: Consulta `docs/`
-- 🔍 Logs: Revisa los logs del pipeline en Azure DevOps
+- 🔍 Logs: Revisa los logs del workflow en GitHub Actions

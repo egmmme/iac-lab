@@ -8,7 +8,7 @@ Este proyecto implementa una arquitectura modular para infraestructura como cód
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    Azure DevOps Pipeline                     │
+│                    GitHub Actions Workflow                   │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
 │  Stage 1: TERRAFORM (Infraestructura Modular)                │
@@ -141,7 +141,7 @@ Ver `main.tf` para el ejemplo completo.
 
 ## Seguridad
 
-- 🔒 Credenciales en variables secretas de Azure DevOps
+- 🔒 Credenciales en GitHub Secrets
 - 🔒 SSH keys generadas dinámicamente en el pipeline
 - 🔒 NSG con reglas restrictivas (solo SSH y HTTP)
 - 🔒 Escaneo de seguridad con `tfsec` en cada commit

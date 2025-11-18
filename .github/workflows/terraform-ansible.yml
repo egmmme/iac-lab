@@ -1,0 +1,335 @@
+name: Terraform + Ansible CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: rg-terraform-ansible-demo
+  VM_NAME: vm-demo
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+jobs:
+  # ================================================================
+  # NIVEL 1: PRUEBAS UNITARIAS DE MÓDULO
+  # ================================================================
+  terraform-lint:
+    name: 📋 Terraform - Sintaxis y Seguridad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: TFLint Init
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --recursive
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+      - name: Run tfsec (Security Scan)
+        run: |
+          echo "🛡️ Ejecutando tfsec (Security Scan)..."
+          tfsec . --soft-fail || echo "⚠️ Vulnerabilidades encontradas (no bloqueante en Nivel 1)"
+        continue-on-error: true
+
+  ansible-lint:
+    name: 📋 Ansible - Sintaxis y Best Practices
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible and ansible-lint
+        run: |
+          pip install ansible ansible-lint
+
+      - name: Run ansible-lint
+        run: ansible-lint -c .ansible-lint.yml setup_vm.yml
+
+  # ================================================================
+  # NIVEL 2: PRUEBAS DE INTEGRACIÓN
+  # ================================================================
+  security-scan:
+    name: 🔗 Escaneo de Seguridad - tfsec (strict)
+    runs-on: ubuntu-latest
+    needs: [terraform-lint, ansible-lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+      - name: Run tfsec (strict mode)
+        run: |
+          echo "🛡️ Ejecutando tfsec en modo estricto..."
+          tfsec . --format default --config-file .tfsec/config.yml
+
+  terratest-modules:
+    name: 🔗 Terratest - Módulos
+    runs-on: ubuntu-latest
+    needs: [terraform-lint, ansible-lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Azure Login
+        run: |
+          az login --service-principal \
+            -u ${{ secrets.AZURE_CLIENT_ID }} \
+            -p ${{ secrets.AZURE_CLIENT_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT_ID }}
+          az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run Terratest
+        working-directory: ./tests
+        run: |
+          go mod download
+          go test -v -timeout 30m
+
+  # ================================================================
+  # NIVEL 3: DEPLOY E2E Y SMOKE TESTS
+  # ================================================================
+  deploy-infrastructure:
+    name: 🚀 Deploy Infraestructura
+    runs-on: ubuntu-latest
+    needs: [security-scan, terratest-modules]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      vm_public_ip: ${{ steps.terraform-output.outputs.vm_public_ip }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      - name: Azure Login
+        run: |
+          az login --service-principal \
+            -u ${{ secrets.AZURE_CLIENT_ID }} \
+            -p ${{ secrets.AZURE_CLIENT_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT_ID }}
+          az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Generate SSH Keys
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+          chmod 600 ~/.ssh/id_rsa
+          chmod 644 ~/.ssh/id_rsa.pub
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="admin_username=azureuser" \
+            -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        id: terraform-output
+        run: |
+          VM_IP=$(terraform output -raw vm_public_ip)
+          echo "vm_public_ip=$VM_IP" >> $GITHUB_OUTPUT
+          echo "VM_PUBLIC_IP=$VM_IP" >> $GITHUB_ENV
+
+      - name: Upload SSH Keys
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssh-keys
+          path: ~/.ssh/
+
+  configure-services:
+    name: 🎯 Configurar con Ansible
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Download SSH Keys
+        uses: actions/download-artifact@v4
+        with:
+          name: ssh-keys
+          path: ~/.ssh/
+
+      - name: Set SSH Permissions
+        run: |
+          chmod 600 ~/.ssh/id_rsa
+          chmod 644 ~/.ssh/id_rsa.pub
+
+      - name: Create Ansible Inventory
+        env:
+          VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
+        run: |
+          echo "[webservers]" > inventory.ini
+          echo "$VM_IP ansible_user=azureuser ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory.ini
+
+      - name: Wait for SSH
+        env:
+          VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
+        run: |
+          echo "⏳ Esperando VM lista..."
+          sleep 60
+          MAX_RETRIES=30
+          RETRY_COUNT=0
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -i ~/.ssh/id_rsa azureuser@$VM_IP "echo 'SSH OK'" 2>/dev/null; then
+              echo "✅ SSH disponible!"
+              break
+            fi
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 10
+          done
+          if [ "$RETRY_COUNT" -eq "$MAX_RETRIES" ]; then
+            echo "❌ No se pudo establecer conexión SSH tras $MAX_RETRIES intentos"
+            exit 1
+          fi
+
+      - name: Run Ansible Playbook
+        run: ansible-playbook -i inventory.ini setup_vm.yml -v
+
+  smoke-tests:
+    name: 🧪 Smoke Tests E2E
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure, configure-services]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Test HTTP Status
+        env:
+          VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
+        run: |
+          echo "🧪 === SMOKE TESTS E2E ==="
+          echo "Target: http://$VM_IP"
+
+          # Test 1: HTTP Status 200
+          echo "Test 1: Verificar HTTP 200..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$VM_IP)
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ HTTP 200 OK"
+          else
+            echo "❌ HTTP $HTTP_STATUS - Expected 200"
+            exit 1
+          fi
+
+          # Test 2: Nginx Header
+          echo "Test 2: Verificar header Nginx..."
+          if curl -sI http://$VM_IP | grep -i "nginx"; then
+            echo "✅ Nginx header presente"
+          else
+            echo "❌ Header Nginx no encontrado"
+            exit 1
+          fi
+
+          # Test 3: Content Check
+          echo "Test 3: Verificar contenido..."
+          if curl -s http://$VM_IP | grep -i "Welcome"; then
+            echo "✅ Contenido correcto"
+          else
+            echo "❌ Contenido no encontrado"
+            exit 1
+          fi
+
+          echo "✅ === TODOS LOS SMOKE TESTS PASARON ==="
+
+  # ================================================================
+  # CLEANUP: Destruir recursos después de tests
+  # ================================================================
+  cleanup:
+    name: 🧹 Cleanup - Destruir Recursos
+    runs-on: ubuntu-latest
+    needs: [smoke-tests]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Azure Login
+        run: |
+          az login --service-principal \
+            -u ${{ secrets.AZURE_CLIENT_ID }} \
+            -p ${{ secrets.AZURE_CLIENT_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT_ID }}
+          az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: |
+          echo "🧹 Destruyendo recursos de demo..."
+          terraform destroy -auto-approve \
+            -var="admin_username=azureuser" \
+            -var="ssh_public_key=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDummy" || true
+
+      - name: Verify Cleanup
+        run: |
+          echo "🔍 Verificando limpieza..."
+          REMAINING=$(az resource list -g ${{ env.RESOURCE_GROUP }} --query "length(@)" -o tsv 2>/dev/null || echo "0")
+          if [ "$REMAINING" = "0" ]; then
+            echo "✅ Todos los recursos eliminados"
+          else
+            echo "⚠️ Aún quedan $REMAINING recursos (limpieza manual puede ser necesaria)"
+          fi

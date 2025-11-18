@@ -78,7 +78,7 @@ Terraform y Ansible son dos herramientas fundamentales en el ecosistema DevOps, 
 1. **Terraform**: Provisiona infraestructura (VMs, red, storage)
 2. **Ansible**: Configura servidores (software, aplicaciones)
 
-Ver `azure-pipelines.yml` para ejemplo completo.
+Ver `.github/workflows/terraform-ansible.yml` para ejemplo completo.
 
 ---
 
@@ -96,7 +96,7 @@ Ver `azure-pipelines.yml` para ejemplo completo.
 
 Pipeline típico: Validar → Plan → Apply Terraform → Configurar con Ansible → Tests
 
-Ver `azure-pipelines.yml` en este repo.
+Ver `.github/workflows/terraform-ansible.yml` en este repo.
 
 ---
 
