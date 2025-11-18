@@ -81,26 +81,26 @@ module "security" {
 
   security_rules = [
     {
-      name                       = "AllowSSH"
-      priority                   = 1001
-      direction                  = "Inbound"
-      access                     = "Allow"
-      protocol                   = "Tcp"
-      source_port_range          = "*"
-      destination_port_range     = "22"
+      name                   = "AllowSSH"
+      priority               = 1001
+      direction              = "Inbound"
+      access                 = "Allow"
+      protocol               = "Tcp"
+      source_port_range      = "*"
+      destination_port_range = "22"
       # ⚠️ DEMO/LAB ONLY: source_address_prefix = "*" permite acceso desde cualquier IP
       # 🔒 PRODUCCIÓN: Cambiar a IP específica (ej: "203.0.113.0/24") o usar Azure Bastion
       source_address_prefix      = "*"
       destination_address_prefix = "*"
     },
     {
-      name                       = "AllowHTTP"
-      priority                   = 1002
-      direction                  = "Inbound"
-      access                     = "Allow"
-      protocol                   = "Tcp"
-      source_port_range          = "*"
-      destination_port_range     = "80"
+      name                   = "AllowHTTP"
+      priority               = 1002
+      direction              = "Inbound"
+      access                 = "Allow"
+      protocol               = "Tcp"
+      source_port_range      = "*"
+      destination_port_range = "80"
       # ℹ️ HTTP público es aceptable para web servers (puerto 80)
       source_address_prefix      = "*"
       destination_address_prefix = "*"
