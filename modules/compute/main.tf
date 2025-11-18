@@ -3,6 +3,16 @@
 # Propósito: Crear VM Linux con configuración completa
 # ===================================================================
 
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">= 4.0"
+    }
+  }
+}
+
 resource "azurerm_network_interface" "main" {
   name                = var.nic_name
   location            = var.location
