@@ -26,6 +26,7 @@ func TestSecurityModulePlan(t *testing.T) {
 
 	terraformOptions := &terratest_terraform.Options{
 		TerraformDir: "../modules/security",
+		PlanFilePath: "security.tfplan",
 		Vars: map[string]interface{}{
 			"resource_group_name": "rg-terratest-security",
 			"location":            "westeurope",

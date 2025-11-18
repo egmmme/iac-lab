@@ -12,6 +12,7 @@ func TestNetworkModulePlan(t *testing.T) {
 
 	terraformOptions := &terratest_terraform.Options{
 		TerraformDir: "../modules/network",
+		PlanFilePath: "network.tfplan",
 		Vars: map[string]interface{}{
 			"resource_group_name": "rg-terratest-network",
 			"location":            "westeurope",
