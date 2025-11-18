@@ -179,24 +179,113 @@ jobs:
             -backend-config="container_name=$TF_STATE_CONTAINER" \
             -backend-config="key=$TF_STATE_KEY"
 
-      - name: Import Existing Resource Group (if pre-created)
+      - name: Import Existing Resources (if pre-created)
         run: |
-          if ! terraform state list | grep -q azurerm_resource_group.demo; then
-            echo "🔄 Checking for pre-existing resource group $RESOURCE_GROUP to import into state..."
+          echo "🔍 Checking current state..."
+          terraform state list || echo "State is empty"
+
+          # Import Resource Group
+          if ! terraform state list 2>/dev/null | grep -q "azurerm_resource_group.demo"; then
             if az group show -n $RESOURCE_GROUP >/dev/null 2>&1; then
-              echo "➡️ Importing $RESOURCE_GROUP into Terraform state"
+              echo "➡️ Importing Resource Group: $RESOURCE_GROUP"
               terraform import \
                 -var="admin_username=azureuser" \
                 -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
                 azurerm_resource_group.demo \
-                /subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP || {
-                echo "❌ Import failed"; exit 1; }
-            else
-              echo "ℹ️ Resource group $RESOURCE_GROUP not found; Terraform will create it."
+                "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP" || echo "⚠️ RG import failed or already exists"
             fi
           else
-            echo "✅ Resource group already in state; skipping import."
+            echo "✅ Resource Group already in state"
           fi
+
+          # Import VNet
+          if ! terraform state list 2>/dev/null | grep -q "module.network.azurerm_virtual_network.main"; then
+            VNET_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/vnet-demo"
+            if az network vnet show --ids "$VNET_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing VNet: vnet-demo"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.network.azurerm_virtual_network.main \
+                "$VNET_ID" || echo "⚠️ VNet import failed"
+            fi
+          else
+            echo "✅ VNet already in state"
+          fi
+
+          # Import Subnet
+          if ! terraform state list 2>/dev/null | grep -q "module.network.azurerm_subnet.main"; then
+            SUBNET_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/vnet-demo/subnets/subnet-demo"
+            if az network vnet subnet show --ids "$SUBNET_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing Subnet: subnet-demo"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.network.azurerm_subnet.main \
+                "$SUBNET_ID" || echo "⚠️ Subnet import failed"
+            fi
+          else
+            echo "✅ Subnet already in state"
+          fi
+
+          # Import Public IP
+          if ! terraform state list 2>/dev/null | grep -q "module.network.azurerm_public_ip.main"; then
+            PIP_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/publicIPAddresses/pip-demo"
+            if az network public-ip show --ids "$PIP_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing Public IP: pip-demo"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.network.azurerm_public_ip.main \
+                "$PIP_ID" || echo "⚠️ Public IP import failed"
+            fi
+          else
+            echo "✅ Public IP already in state"
+          fi
+
+          # Import NSG
+          if ! terraform state list 2>/dev/null | grep -q "module.security.azurerm_network_security_group.main"; then
+            NSG_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo"
+            if az network nsg show --ids "$NSG_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing NSG: nsg-demo"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                module.security.azurerm_network_security_group.main \
+                "$NSG_ID" || echo "⚠️ NSG import failed"
+            fi
+          else
+            echo "✅ NSG already in state"
+          fi
+
+          # Import NSG Rules
+          if ! terraform state list 2>/dev/null | grep -q 'module.security.azurerm_network_security_rule.rules\["AllowSSH"\]'; then
+            SSH_RULE_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo/securityRules/AllowSSH"
+            if az network nsg rule show --ids "$SSH_RULE_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing SSH Rule"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                'module.security.azurerm_network_security_rule.rules["AllowSSH"]' \
+                "$SSH_RULE_ID" || echo "⚠️ SSH rule import failed"
+            fi
+          fi
+
+          if ! terraform state list 2>/dev/null | grep -q 'module.security.azurerm_network_security_rule.rules\["AllowHTTP"\]'; then
+            HTTP_RULE_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo/securityRules/AllowHTTP"
+            if az network nsg rule show --ids "$HTTP_RULE_ID" >/dev/null 2>&1; then
+              echo "➡️ Importing HTTP Rule"
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                'module.security.azurerm_network_security_rule.rules["AllowHTTP"]' \
+                "$HTTP_RULE_ID" || echo "⚠️ HTTP rule import failed"
+            fi
+          fi
+
+          echo ""
+          echo "📋 Final state list:"
+          terraform state list || echo "No resources in state"
 
       - name: Terraform Plan
         run: |
