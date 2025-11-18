@@ -1,5 +1,7 @@
 # 🚀 IaC Lab - Terraform + Ansible on Azure
 
+[![CI - Terraform + Ansible](https://github.com/egmmme/iac-lab/actions/workflows/terraform-ansible.yml/badge.svg?branch=main)](https://github.com/egmmme/iac-lab/actions/workflows/terraform-ansible.yml)
+
 Infrastructure as Code (IaC) demo using **Terraform** and **Ansible** with modular architecture, automated testing, and CI/CD via GitHub Actions.
 
 ## 🎯 What This Project Does
