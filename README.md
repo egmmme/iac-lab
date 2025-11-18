@@ -85,14 +85,6 @@ iac-lab/
 
 📖 **Comparativa completa**: [docs/terraform-vs-ansible.md](docs/terraform-vs-ansible.md)
 
-## 💰 Costos
-
-- **VM Standard_B1s**: ~8-10 €/mes
-- **IP Pública**: ~3 €/mes
-- **Total**: ~12-14 €/mes
-
-⚠️ **Eliminar recursos**: `terraform destroy` o `az group delete --name rg-terraform-ansible-demo --yes`
-
 ## 🎯 Buenas Prácticas Implementadas
 
 ✅ **Modularización**: 3 módulos independientes y reutilizables  

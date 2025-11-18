@@ -40,16 +40,16 @@
           </head>
           <body>
               <div class="container">
-                  <h1>🚀 Deployed with Terraform + Ansible!</h1>
+                  <h1>Deployed with Terraform + Ansible!</h1>
                   <div class="tech">
                       <strong>Infrastructure:</strong> Terraform (IaC)
-                      <br>Creó: VM, VNet, IP pública, NSG
+                      <br>Creado: VM, VNet, IP publica, NSG
                   </div>
                   <div class="tech">
-                      <strong>Configuration:</strong> Ansible
-                      <br>Instaló: Nginx, página personalizada
+                      <strong>Config;</strong> Ansible
+                      <br>Instalado: Nginx, pagina personalizada
                   </div>
-                  <p>✅ Pipeline completado exitosamente</p>
+                  <p>Pipeline completado exitosamente</p>
               </div>
           </body>
           </html>
