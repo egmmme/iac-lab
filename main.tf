@@ -88,7 +88,9 @@ module "security" {
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "22"
-      source_address_prefix      = "*" # Buena práctica: restringir a IPs específicas en producción
+      # ⚠️ DEMO/LAB ONLY: source_address_prefix = "*" permite acceso desde cualquier IP
+      # 🔒 PRODUCCIÓN: Cambiar a IP específica (ej: "203.0.113.0/24") o usar Azure Bastion
+      source_address_prefix      = "*"
       destination_address_prefix = "*"
     },
     {
@@ -99,6 +101,7 @@ module "security" {
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "80"
+      # ℹ️ HTTP público es aceptable para web servers (puerto 80)
       source_address_prefix      = "*"
       destination_address_prefix = "*"
     }
