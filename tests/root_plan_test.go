@@ -18,7 +18,7 @@ func TestRootPlan(t *testing.T) {
 			"vm_size":             "Standard_B1s",
 			"admin_username":      "azureuser",
 			"environment":         "demo",
-			"ssh_public_key":      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJmOCK-demo-key-not-used-for-apply== terratest@example",
+			"ssh_public_key":      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7Z3QKhJdJvKf+demo+key+for+terratest+only+not+for+real+use+AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQRRRRSSSSTTTTUUUUVVVVWWWWXXXXYYYYZZZZaaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffgggggggghhhhhhhhiiiiiiiijjjjjjjjkkkkkkkkllllllllmmmmmmmm terratest@example",
 			"tags": map[string]string{
 				"project":   "iac-lab",
 				"managedBy": "terraform",
