@@ -9,23 +9,23 @@
 
   tasks:
     - name: Actualizar caché de paquetes
-      apt:
+      ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
 
     - name: Instalar Nginx
-      apt:
+      ansible.builtin.apt:
         name: nginx
         state: present
 
     - name: Iniciar y habilitar Nginx
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
         state: started
         enabled: yes
 
     - name: Crear página index personalizada
-      copy:
+      ansible.builtin.copy:
         content: |
           <!DOCTYPE html>
           <html>
@@ -57,11 +57,11 @@
         mode: "0644"
 
     - name: Verificar que Nginx está corriendo
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
         state: started
       register: nginx_status
 
     - name: Mostrar estado de Nginx
-      debug:
+      ansible.builtin.debug:
         msg: "Nginx está {{ nginx_status.status.ActiveState }}"
