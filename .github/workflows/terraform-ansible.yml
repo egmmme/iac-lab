@@ -185,7 +185,11 @@ jobs:
             echo "🔄 Checking for pre-existing resource group $RESOURCE_GROUP to import into state..."
             if az group show -n $RESOURCE_GROUP >/dev/null 2>&1; then
               echo "➡️ Importing $RESOURCE_GROUP into Terraform state"
-              terraform import azurerm_resource_group.demo /subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP || {
+              terraform import \
+                -var="admin_username=azureuser" \
+                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
+                azurerm_resource_group.demo \
+                /subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP || {
                 echo "❌ Import failed"; exit 1; }
             else
               echo "ℹ️ Resource group $RESOURCE_GROUP not found; Terraform will create it."
