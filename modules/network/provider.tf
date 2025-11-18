@@ -2,5 +2,5 @@
 # This file is only used when testing the module independently
 provider "azurerm" {
   features {}
-  skip_provider_registration = true
+  resource_provider_registrations = "none"
 }
