@@ -293,9 +293,14 @@ jobs:
       - name: Terraform Destroy
         run: |
           echo "🧹 Destroying demo resources..."
+          echo "🔐 Generating ephemeral SSH key for destroy phase..."
+          ssh-keygen -t rsa -b 4096 -f ephemeral_key -N "" >/dev/null 2>&1
+          EPHEMERAL_KEY=$(cat ephemeral_key.pub)
+          echo "✅ Ephemeral key generated"
           terraform destroy -auto-approve \
             -var="admin_username=azureuser" \
-            -var="ssh_public_key=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDummy" || true
+            -var="ssh_public_key=${EPHEMERAL_KEY}" || true
+          rm -f ephemeral_key ephemeral_key.pub
 
       - name: Verify Cleanup
         run: |
