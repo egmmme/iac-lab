@@ -160,178 +160,13 @@ jobs:
           az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Generate SSH Keys
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-          chmod 600 ~/.ssh/id_rsa
-          chmod 644 ~/.ssh/id_rsa.pub
+        run: ./.github/scripts/ssh/setup-keys.sh
 
       - name: Terraform Init
-        run: |
-          echo "🔐 Ensure remote state resources (idempotent)"
-          az group create -n $TF_STATE_RG -l "West Europe" --tags managedBy=terraform || true
-          az storage account create --name $TF_STATE_STORAGE --resource-group $TF_STATE_RG --location "West Europe" --sku Standard_LRS --kind StorageV2 --allow-blob-public-access false || true
-          az storage container create --name $TF_STATE_CONTAINER --account-name $TF_STATE_STORAGE --auth-mode login || true
-
-          echo "📦 terraform init with remote backend"
-          terraform init \
-            -backend-config="resource_group_name=$TF_STATE_RG" \
-            -backend-config="storage_account_name=$TF_STATE_STORAGE" \
-            -backend-config="container_name=$TF_STATE_CONTAINER" \
-            -backend-config="key=$TF_STATE_KEY"
+        run: ./.github/scripts/terraform/init.sh
 
       - name: Import Existing Resources (if pre-created)
-        run: |
-          echo "🔍 Checking current state..."
-          terraform state list || echo "State is empty"
-
-          # Import Resource Group
-          if ! terraform state list 2>/dev/null | grep -q "azurerm_resource_group.demo"; then
-            if az group show -n $RESOURCE_GROUP >/dev/null 2>&1; then
-              echo "➡️ Importing Resource Group: $RESOURCE_GROUP"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                azurerm_resource_group.demo \
-                "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP" || echo "⚠️ RG import failed or already exists"
-            fi
-          else
-            echo "✅ Resource Group already in state"
-          fi
-
-          # Import VNet
-          if ! terraform state list 2>/dev/null | grep -q "module.network.azurerm_virtual_network.main"; then
-            VNET_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/vnet-demo"
-            if az network vnet show --ids "$VNET_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing VNet: vnet-demo"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.network.azurerm_virtual_network.main \
-                "$VNET_ID" || echo "⚠️ VNet import failed"
-            fi
-          else
-            echo "✅ VNet already in state"
-          fi
-
-          # Import Subnet
-          if ! terraform state list 2>/dev/null | grep -q "module.network.azurerm_subnet.main"; then
-            SUBNET_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/vnet-demo/subnets/subnet-demo"
-            if az network vnet subnet show --ids "$SUBNET_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing Subnet: subnet-demo"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.network.azurerm_subnet.main \
-                "$SUBNET_ID" || echo "⚠️ Subnet import failed"
-            fi
-          else
-            echo "✅ Subnet already in state"
-          fi
-
-          # Import Public IP
-          if ! terraform state list 2>/dev/null | grep -q "module.network.azurerm_public_ip.main"; then
-            PIP_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/publicIPAddresses/pip-demo"
-            if az network public-ip show --ids "$PIP_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing Public IP: pip-demo"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.network.azurerm_public_ip.main \
-                "$PIP_ID" || echo "⚠️ Public IP import failed"
-            fi
-          else
-            echo "✅ Public IP already in state"
-          fi
-
-          # Import NSG
-          if ! terraform state list 2>/dev/null | grep -q "module.security.azurerm_network_security_group.main"; then
-            NSG_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo"
-            if az network nsg show --ids "$NSG_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing NSG: nsg-demo"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.security.azurerm_network_security_group.main \
-                "$NSG_ID" || echo "⚠️ NSG import failed"
-            fi
-          else
-            echo "✅ NSG already in state"
-          fi
-
-          # Import NSG Rules
-          if ! terraform state list 2>/dev/null | grep -q 'module.security.azurerm_network_security_rule.rules\["AllowSSH"\]'; then
-            SSH_RULE_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo/securityRules/AllowSSH"
-            if az network nsg rule show --ids "$SSH_RULE_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing SSH Rule"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                'module.security.azurerm_network_security_rule.rules["AllowSSH"]' \
-                "$SSH_RULE_ID" || echo "⚠️ SSH rule import failed"
-            fi
-          fi
-
-          if ! terraform state list 2>/dev/null | grep -q 'module.security.azurerm_network_security_rule.rules\["AllowHTTP"\]'; then
-            HTTP_RULE_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo/securityRules/AllowHTTP"
-            if az network nsg rule show --ids "$HTTP_RULE_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing HTTP Rule"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                'module.security.azurerm_network_security_rule.rules["AllowHTTP"]' \
-                "$HTTP_RULE_ID" || echo "⚠️ HTTP rule import failed"
-            fi
-          fi
-
-          # Import Network Interface
-          if ! terraform state list 2>/dev/null | grep -q "module.compute.azurerm_network_interface.main"; then
-            NIC_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkInterfaces/nic-demo"
-            if az network nic show --ids "$NIC_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing Network Interface: nic-demo"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.compute.azurerm_network_interface.main \
-                "$NIC_ID" || echo "⚠️ NIC import failed"
-            fi
-          else
-            echo "✅ NIC already in state"
-          fi
-
-          # Import NIC-NSG Association
-          if ! terraform state list 2>/dev/null | grep -q "module.compute.azurerm_network_interface_security_group_association.main"; then
-            NIC_NSG_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkInterfaces/nic-demo|/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkSecurityGroups/nsg-demo"
-            if az network nic show --ids "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/networkInterfaces/nic-demo" >/dev/null 2>&1; then
-              echo "➡️ Importing NIC-NSG Association"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.compute.azurerm_network_interface_security_group_association.main \
-                "$NIC_NSG_ID" || echo "⚠️ NIC-NSG association import failed"
-            fi
-          else
-            echo "✅ NIC-NSG association already in state"
-          fi
-
-          # Import Virtual Machine
-          if ! terraform state list 2>/dev/null | grep -q "module.compute.azurerm_linux_virtual_machine.main"; then
-            VM_ID="/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Compute/virtualMachines/vm-demo"
-            if az vm show --ids "$VM_ID" >/dev/null 2>&1; then
-              echo "➡️ Importing Virtual Machine: vm-demo"
-              terraform import \
-                -var="admin_username=azureuser" \
-                -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)" \
-                module.compute.azurerm_linux_virtual_machine.main \
-                "$VM_ID" || echo "⚠️ VM import failed"
-            fi
-          else
-            echo "✅ VM already in state"
-          fi
-
-          echo ""
-          echo "📋 Final state list:"
-          terraform state list || echo "No resources in state"
+        run: ./.github/scripts/terraform/import-resources.sh
 
       - name: Terraform Plan
         run: |
@@ -384,40 +219,17 @@ jobs:
           path: /tmp/ssh-keys/
 
       - name: Set SSH Permissions
-        run: |
-          mkdir -p ~/.ssh
-          cp /tmp/ssh-keys/id_rsa ~/.ssh/id_rsa
-          cp /tmp/ssh-keys/id_rsa.pub ~/.ssh/id_rsa.pub
-          chmod 600 ~/.ssh/id_rsa
-          chmod 644 ~/.ssh/id_rsa.pub
+        run: ./.github/scripts/ssh/restore-keys.sh /tmp/ssh-keys
 
       - name: Create Ansible Inventory
         env:
           VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
-        run: |
-          echo "[webservers]" > inventory.ini
-          echo "$VM_IP ansible_user=azureuser ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory.ini
+        run: ./.github/scripts/ansible/create-inventory.sh
 
       - name: Wait for SSH
         env:
           VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
-        run: |
-          echo "⏳ Waiting for VM to be ready..."
-          sleep 60
-          MAX_RETRIES=30
-          RETRY_COUNT=0
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -i ~/.ssh/id_rsa azureuser@$VM_IP "echo 'SSH OK'" 2>/dev/null; then
-              echo "✅ SSH available!"
-              break
-            fi
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 10
-          done
-          if [ "$RETRY_COUNT" -eq "$MAX_RETRIES" ]; then
-            echo "❌ Could not establish SSH connection after $MAX_RETRIES attempts"
-            exit 1
-          fi
+        run: ./.github/scripts/ansible/wait-for-ssh.sh
 
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini setup_vm.yml -v
@@ -431,39 +243,7 @@ jobs:
       - name: Test HTTP Status
         env:
           VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
-        run: |
-          echo "🧪 === SMOKE TESTS E2E ==="
-          echo "Target: http://$VM_IP"
-
-          # Test 1: HTTP Status 200
-          echo "Test 1: Verify HTTP 200..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$VM_IP)
-          if [ "$HTTP_STATUS" = "200" ]; then
-            echo "✅ HTTP 200 OK"
-          else
-            echo "❌ HTTP $HTTP_STATUS - Expected 200"
-            exit 1
-          fi
-
-          # Test 2: Nginx Header
-          echo "Test 2: Verify Nginx header..."
-          if curl -sI http://$VM_IP | grep -i "nginx"; then
-            echo "✅ Nginx header present"
-          else
-            echo "❌ Nginx header not found"
-            exit 1
-          fi
-
-          # Test 3: Content Check
-          echo "Test 3: Verify content..."
-          if curl -s http://$VM_IP | grep -i "Deployed with Terraform"; then
-            echo "✅ Content correct"
-          else
-            echo "❌ Content not found"
-            exit 1
-          fi
-
-          echo "✅ === ALL SMOKE TESTS PASSED ==="
+        run: ./.github/scripts/testing/smoke-tests.sh
 
   # ================================================================
   # CLEANUP: Destroy resources after tests
@@ -490,13 +270,7 @@ jobs:
           az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Init
-        run: |
-          echo "📦 terraform init with remote backend for cleanup"
-          terraform init \
-            -backend-config="resource_group_name=$TF_STATE_RG" \
-            -backend-config="storage_account_name=$TF_STATE_STORAGE" \
-            -backend-config="container_name=$TF_STATE_CONTAINER" \
-            -backend-config="key=$TF_STATE_KEY"
+        run: ./.github/scripts/terraform/init.sh
 
       - name: Terraform Destroy
         run: |
