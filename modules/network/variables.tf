@@ -3,76 +3,76 @@
 # ===================================================================
 
 variable "resource_group_name" {
-  description = "Nombre del grupo de recursos donde se crearán los recursos de red"
+  description = "Resource group name where network resources will be created"
   type        = string
 }
 
 variable "location" {
-  description = "Ubicación de Azure para los recursos de red"
+  description = "Azure location for network resources"
   type        = string
 }
 
 variable "vnet_name" {
-  description = "Nombre de la red virtual"
+  description = "Virtual network name"
   type        = string
 }
 
 variable "address_space" {
-  description = "Espacio de direcciones para la VNet"
+  description = "Address space for the VNet"
   type        = list(string)
   default     = ["10.0.0.0/16"]
 
   validation {
     condition     = length(var.address_space) > 0
-    error_message = "El espacio de direcciones no puede estar vacío."
+    error_message = "Address space cannot be empty."
   }
 }
 
 variable "subnet_name" {
-  description = "Nombre de la subred"
+  description = "Subnet name"
   type        = string
 }
 
 variable "subnet_prefixes" {
-  description = "Prefijos de direcciones para la subred"
+  description = "Address prefixes for the subnet"
   type        = list(string)
   default     = ["10.0.1.0/24"]
 
   validation {
     condition     = length(var.subnet_prefixes) > 0
-    error_message = "Los prefijos de subred no pueden estar vacíos."
+    error_message = "Subnet prefixes cannot be empty."
   }
 }
 
 variable "public_ip_name" {
-  description = "Nombre de la IP pública"
+  description = "Public IP name"
   type        = string
 }
 
 variable "public_ip_allocation_method" {
-  description = "Método de asignación de IP pública (Static o Dynamic)"
+  description = "Public IP allocation method (Static or Dynamic)"
   type        = string
   default     = "Static"
 
   validation {
     condition     = contains(["Static", "Dynamic"], var.public_ip_allocation_method)
-    error_message = "El método de asignación debe ser 'Static' o 'Dynamic'."
+    error_message = "Allocation method must be 'Static' or 'Dynamic'."
   }
 }
 
 variable "public_ip_sku" {
-  description = "SKU de la IP pública (Basic o Standard)"
+  description = "Public IP SKU (Basic or Standard)"
   type        = string
   default     = "Standard"
 
   validation {
     condition     = contains(["Basic", "Standard"], var.public_ip_sku)
-    error_message = "El SKU debe ser 'Basic' o 'Standard'."
+    error_message = "SKU must be 'Basic' or 'Standard'."
   }
 }
 
 variable "tags" {
-  description = "Tags para aplicar a los recursos de red"
+  description = "Tags to apply to network resources"
   type        = map(string)
   default     = {}
 }

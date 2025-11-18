@@ -1,6 +1,6 @@
 # ===================================================================
-# Módulo: Compute
-# Propósito: Crear VM Linux con configuración completa
+# Module: Compute
+# Purpose: Create Linux VM with complete configuration
 # ===================================================================
 
 terraform {

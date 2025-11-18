@@ -1,140 +1,164 @@
-# 🚀 IaC Lab - Terraform + Ansible en Azure
+# 🚀 IaC Lab - Terraform + Ansible on Azure
 
-Proyecto de demostración de infraestructura como código (IaC) usando **Terraform** y **Ansible** con arquitectura modular, testing automatizado y CI/CD en GitHub Actions.
+Infrastructure as Code (IaC) demo using **Terraform** and **Ansible** with modular architecture, automated testing, and CI/CD via GitHub Actions.
 
-## 🎯 ¿Qué hace este proyecto?
+## 🎯 What This Project Does
 
-1. **Terraform** crea la infraestructura en Azure (VNet, VM, NSG)
-2. **Ansible** configura el servidor (instala Nginx)
-3. **GitHub Actions** ejecuta todo automáticamente con testing en 3 niveles
+1. **Terraform** provisions Azure infrastructure (VNet, VM, NSG)
+2. **Ansible** configures the server (installs Nginx)
+3. **GitHub Actions** automates everything with 3-level testing
 
-**Resultado**: Servidor web funcional en Azure con validación, testing y deployment automatizados.
+**Result**: Functional web server on Azure with automated validation, testing, and deployment.
 
 ## ⚡ Quick Start
 
+### Prerequisites
+
+- Azure subscription
+- GitHub account
+
+### Setup
+
+1. **Create Azure Service Principal**
+
 ```bash
-# 1. Clonar repositorio
-git clone https://github.com/egmmme/iac-lab.git
-
-# 2. Configurar Service Principal en GitHub Secrets
-# Ver guía completa: docs/setup-guide.md
-
-# 3. Push a main para ejecutar el pipeline
-git push origin main
-
-# 4. Visitar http://<IP_PUBLICA> cuando termine
+az login
+az ad sp create-for-rbac --name "terraform-ansible-demo" --role Contributor
 ```
 
-📖 **Guía detallada**: [docs/setup-guide.md](docs/setup-guide.md)
+2. **Configure GitHub Secrets**
 
-📖 **Guía detallada**: [docs/setup-guide.md](docs/setup-guide.md)
+Go to: `Repository Settings` → `Secrets and variables` → `Actions` → `New repository secret`
 
-## 📂 Estructura del Proyecto
+Add these secrets:
+
+| Secret Name             | Value                                |
+| ----------------------- | ------------------------------------ |
+| `AZURE_CLIENT_ID`       | `appId` from Service Principal       |
+| `AZURE_CLIENT_SECRET`   | `password` from Service Principal    |
+| `AZURE_TENANT_ID`       | `tenant` from Service Principal      |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID           |
+| `TF_STATE_RG`           | `rg-tfstate-shared` (or your choice) |
+| `TF_STATE_STORAGE`      | `tfstateacct123` (globally unique)   |
+| `TF_STATE_CONTAINER`    | `tfstate`                            |
+| `TF_STATE_KEY`          | `infra-demo.tfstate`                 |
+
+3. **Bootstrap Remote State (Optional)**
+
+```bash
+az group create -n rg-tfstate-shared -l "West Europe"
+az storage account create --name tfstateacct123 --resource-group rg-tfstate-shared --location "West Europe" --sku Standard_LRS --allow-blob-public-access false
+az storage container create --name tfstate --account-name tfstateacct123 --auth-mode login
+```
+
+4. **Trigger Pipeline**
+
+```bash
+git push origin main
+```
+
+5. **Access Your Web Server**
+
+- Find the public IP in GitHub Actions logs
+- Visit `http://<PUBLIC_IP>`
+
+## 📂 Project Structure
 
 ```
 iac-lab/
-├── main.tf                  # Orquestador de módulos Terraform
-├── variables.tf             # Variables de configuración
-├── outputs.tf               # Outputs del deployment
-├── setup_vm.yml             # Playbook de Ansible
-├── .github/
-│   └── workflows/
-│       └── terraform-ansible.yml  # GitHub Actions workflow (3 niveles de testing)
-├── modules/                 # Módulos Terraform reutilizables
-│   ├── network/             # VNet, Subnet, Public IP
-│   ├── security/            # NSG, Security Rules
-│   └── compute/             # VM, NIC, SSH Config
-├── tests/                   # Tests de integración (Terratest)
-│   ├── network_test.go
-│   ├── security_test.go
-│   └── root_plan_test.go
-└── docs/                    # Documentación
-    ├── architecture.md      # Arquitectura modular
-    ├── setup-guide.md       # Guía de configuración
-    ├── test-matrix.md       # Niveles de testing
-    └── terraform-vs-ansible.md
+├── main.tf                          # Terraform orchestrator
+├── variables.tf                     # Configuration variables
+├── outputs.tf                       # Deployment outputs
+├── setup_vm.yml                     # Ansible playbook
+├── .github/workflows/
+│   └── terraform-ansible.yml        # CI/CD pipeline (3-level testing)
+├── modules/                         # Reusable Terraform modules
+│   ├── network/                     # VNet, Subnet, Public IP
+│   ├── security/                    # NSG, Security Rules
+│   └── compute/                     # VM, NIC, SSH Config
+└── tests/                           # Integration tests (Terratest)
+    ├── network_test.go
+    ├── security_test.go
+    └── root_plan_test.go
 ```
 
-## 🧪 Testing Automatizado (3 Niveles)
+## 🧪 Automated Testing (3 Levels)
 
-| Nivel | Tipo        | Herramientas                                            | Cuándo                  |
-| ----- | ----------- | ------------------------------------------------------- | ----------------------- |
-| **1** | Unitarias   | `terraform validate`, `tflint`, `tfsec`, `ansible-lint` | Cada commit             |
-| **2** | Integración | Terratest (Go), `terraform plan`                        | Después de validaciones |
-| **3** | E2E         | Deploy completo + Smoke tests                           | Solo en `main`          |
+| Level | Type        | Tools                                                   | When           |
+| ----- | ----------- | ------------------------------------------------------- | -------------- |
+| **1** | Unit        | `terraform validate`, `tflint`, `tfsec`, `ansible-lint` | Every commit   |
+| **2** | Integration | Terratest (Go), `terraform plan`                        | After level 1  |
+| **3** | E2E         | Full deploy + Smoke tests                               | On `main` only |
 
-📊 **Detalles completos**: [docs/test-matrix.md](docs/test-matrix.md)
+## 🏗️ Terraform Modules
 
-## 🏗️ Módulos Terraform
+| Module       | Responsibility    | Resources                       |
+| ------------ | ----------------- | ------------------------------- |
+| **network**  | Azure networking  | VNet, Subnet, Public IP         |
+| **security** | Network security  | NSG, Security Rules (SSH, HTTP) |
+| **compute**  | Compute resources | Linux VM, NIC, Associations     |
 
-| Módulo       | Responsabilidad     | Recursos                        |
-| ------------ | ------------------- | ------------------------------- |
-| **network**  | Networking de Azure | VNet, Subnet, Public IP         |
-| **security** | Seguridad de red    | NSG, Security Rules (SSH, HTTP) |
-| **compute**  | Recursos de cómputo | VM Linux, NIC, Asociaciones     |
+📖 Module documentation: `modules/*/README.md`
 
-📖 Documentación de cada módulo: `modules/*/README.md`  
-🏛️ Arquitectura completa: [docs/architecture.md](docs/architecture.md)
+## 🔑 Terraform vs Ansible
 
-## 🔑 Diferencias Terraform vs Ansible
+| Aspect       | Terraform                     | Ansible                     |
+| ------------ | ----------------------------- | --------------------------- |
+| **Purpose**  | Provision infrastructure      | Configure software          |
+| **Syntax**   | HCL                           | YAML                        |
+| **State**    | Maintains `terraform.tfstate` | Stateless                   |
+| **Use here** | Create VMs, networks, NSGs    | Install Nginx, configure OS |
 
-| Aspecto                  | Terraform                    | Ansible                              |
-| ------------------------ | ---------------------------- | ------------------------------------ |
-| **Propósito**            | Provisionar infraestructura  | Configurar software                  |
-| **Sintaxis**             | HCL                          | YAML                                 |
-| **Estado**               | Mantiene `terraform.tfstate` | Sin estado                           |
-| **Uso en este proyecto** | Crear VMs, redes, NSGs       | Instalar Nginx, configurar servicios |
+## 🎯 Best Practices Implemented
 
-📖 **Comparativa completa**: [docs/terraform-vs-ansible.md](docs/terraform-vs-ansible.md)
-
-## 🎯 Buenas Prácticas Implementadas
-
-✅ **Modularización**: 3 módulos independientes y reutilizables  
-✅ **Versionado IaC**: Todo el código en Git  
-✅ **Validación**: Formato, sintaxis, seguridad (tfsec)  
-✅ **Testing**: 3 niveles (Unit, Integration, E2E)  
-✅ **Seguridad**: Variables secretas, SSH dinámico, escaneo automático  
-✅ **CI/CD**: Pipeline automatizado con GitHub Actions  
-✅ **Documentación**: README por módulo + guías en `docs/`  
-✅ **Cleanup**: Eliminación automática de recursos de test
-
-## 📚 Documentación
-
-| Documento                                               | Contenido                       |
-| ------------------------------------------------------- | ------------------------------- |
-| [setup-guide.md](docs/setup-guide.md)                   | Configuración paso a paso       |
-| [architecture.md](docs/architecture.md)                 | Arquitectura modular y flujo    |
-| [test-matrix.md](docs/test-matrix.md)                   | Niveles de testing y validación |
-| [terraform-vs-ansible.md](docs/terraform-vs-ansible.md) | Comparativa detallada           |
-| [README-SECURITY.md](README-SECURITY.md)                | Seguridad para producción       |
+✅ **Modularization**: 3 independent reusable modules  
+✅ **IaC Versioning**: All code in Git  
+✅ **Validation**: Format, syntax, security (tfsec)  
+✅ **Testing**: 3 levels (Unit, Integration, E2E)  
+✅ **Security**: Secret variables, dynamic SSH, automated scanning  
+✅ **CI/CD**: Automated pipeline with GitHub Actions  
+✅ **Remote State**: Azure Storage backend for Terraform state  
+✅ **Cleanup**: Automatic resource deletion after tests
 
 ## 🐛 Troubleshooting
 
-### Pipeline falla en Terratest
+### Pipeline fails on Terratest
 
-- Verifica que tienes cuota disponible en Azure
-- El cleanup job elimina recursos anteriores automáticamente
+- Check Azure quota availability
+- Cleanup job automatically removes previous resources
 
 ### SSH connection timeout
 
-- La VM tarda 3-5 minutos en estar lista
-- El pipeline reintenta automáticamente (30 intentos)
+- VM takes 3-5 minutes to be ready
+- Pipeline retries automatically (30 attempts)
 
-### tfsec muestra vulnerabilidades
+### tfsec shows vulnerabilities
 
-- Configuración actual es para **demo/lab** (ver [README-SECURITY.md](README-SECURITY.md))
-- Para producción: implementar IP restriction, Azure Bastion o JIT Access
+- Current config is for **demo/lab** (see [README-SECURITY.md](README-SECURITY.md))
+- For production: implement IP restriction, Azure Bastion, or JIT Access
 
-📖 **Más soluciones**: [docs/setup-guide.md#troubleshooting](docs/setup-guide.md#troubleshooting)
+## 💰 Estimated Costs
 
-## 🚀 Próximos Pasos
+| Resource         | SKU/Size     | Monthly Cost (EUR) |
+| ---------------- | ------------ | ------------------ |
+| Linux VM         | Standard_B1s | ~8-10 €            |
+| Static Public IP | Standard     | ~3 €               |
+| OS Disk          | 30 GB SSD    | ~1 €               |
+| Network traffic  | < 5 GB       | ~0 €               |
+| **TOTAL**        |              | **~12-14 €/month** |
 
-1. ✅ Pipeline con 3 niveles de testing (completado)
-2. 🔄 Agregar módulo de Storage
-3. 🔄 Implementar backend remoto (Azure Storage)
-4. 🔄 Multi-environment (dev, staging, prod)
-5. 🔄 Dashboards de métricas
+⚠️ **Remember**: Run `terraform destroy` after demo to avoid costs.
 
-## 📄 Licencia
+## 🧹 Cleanup Resources
 
-MIT License - Proyecto educativo
+```bash
+# Option 1: Terraform
+terraform destroy -auto-approve
+
+# Option 2: Azure CLI (faster)
+az group delete --name rg-terraform-ansible-demo --yes --no-wait
+```
+
+## 📄 License
+
+MIT License - Educational project

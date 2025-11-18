@@ -1,17 +1,17 @@
 # ===================================================================
-# TERRAFORM - Infraestructura como Código (Arquitectura Modular)
-# Propósito: Orquestar módulos reutilizables para crear infraestructura
+# TERRAFORM - Infrastructure as Code (Modular Architecture)
+# Purpose: Orchestrate reusable modules to create infrastructure
 # ===================================================================
-# Buenas prácticas aplicadas:
-# ✓ Arquitectura modular (modules/network, modules/security, modules/compute)
-# ✓ Versiones fijadas de providers
-# ✓ Variables parametrizables (ver variables.tf)
-# ✓ Outputs documentados (ver outputs.tf)
-# ✓ Tags consistentes para trazabilidad
-# ✓ Validación (terraform validate)
-# ✓ Formateo (terraform fmt)
-# ✓ Módulos documentados con README
-# ✓ Separación de responsabilidades (SoC)
+# Best practices applied:
+# ✓ Modular architecture (modules/network, modules/security, modules/compute)
+# ✓ Pinned provider versions
+# ✓ Parameterized variables (see variables.tf)
+# ✓ Documented outputs (see outputs.tf)
+# ✓ Consistent tags for traceability
+# ✓ Validation (terraform validate)
+# ✓ Formatting (terraform fmt)
+# ✓ Modules documented with README
+# ✓ Separation of concerns (SoC)
 # ===================================================================
 
 terraform {
@@ -47,8 +47,8 @@ resource "azurerm_resource_group" "demo" {
 }
 
 # ===================================================================
-# MÓDULO: NETWORK
-# Gestiona VNet, Subnet y Public IP
+# MODULE: NETWORK
+# Manages VNet, Subnet, and Public IP
 # ===================================================================
 
 module "network" {
@@ -71,8 +71,8 @@ module "network" {
 }
 
 # ===================================================================
-# MÓDULO: SECURITY
-# Gestiona NSG y reglas de seguridad
+# MODULE: SECURITY
+# Manages NSG and security rules
 # ===================================================================
 
 module "security" {
@@ -91,8 +91,8 @@ module "security" {
       protocol               = "Tcp"
       source_port_range      = "*"
       destination_port_range = "22"
-      # ⚠️ DEMO/LAB ONLY: source_address_prefix = "*" permite acceso desde cualquier IP
-      # 🔒 PRODUCCIÓN: Cambiar a IP específica (ej: "203.0.113.0/24") o usar Azure Bastion
+      # ⚠️ DEMO/LAB ONLY: source_address_prefix = "*" allows access from any IP
+      # 🔒 PRODUCTION: Change to specific IP (e.g., "203.0.113.0/24") or use Azure Bastion
       source_address_prefix      = "*"
       destination_address_prefix = "*"
     },
@@ -104,7 +104,7 @@ module "security" {
       protocol               = "Tcp"
       source_port_range      = "*"
       destination_port_range = "80"
-      # ℹ️ HTTP público es aceptable para web servers (puerto 80)
+      # ℹ️ Public HTTP is acceptable for web servers (port 80)
       source_address_prefix      = "*"
       destination_address_prefix = "*"
     }
@@ -114,8 +114,8 @@ module "security" {
 }
 
 # ===================================================================
-# MÓDULO: COMPUTE
-# Gestiona VM Linux, NIC y asociación con NSG
+# MODULE: COMPUTE
+# Manages Linux VM, NIC, and NSG association
 # ===================================================================
 
 module "compute" {
@@ -128,21 +128,21 @@ module "compute" {
   nic_name = "nic-${var.environment}"
   vm_size  = var.vm_size
 
-  # Dependencias de otros módulos
+  # Dependencies from other modules
   subnet_id    = module.network.subnet_id
   public_ip_id = module.network.public_ip_id
   nsg_id       = module.security.nsg_id
 
-  # Configuración de autenticación
+  # Authentication configuration
   admin_username                  = var.admin_username
   ssh_public_key                  = var.ssh_public_key
   disable_password_authentication = true
 
-  # Configuración de almacenamiento
+  # Storage configuration
   os_disk_caching              = "ReadWrite"
   os_disk_storage_account_type = "Standard_LRS"
 
-  # Imagen del SO (Ubuntu 22.04 LTS)
+  # OS image (Ubuntu 22.04 LTS)
   image_publisher = "Canonical"
   image_offer     = "0001-com-ubuntu-server-jammy"
   image_sku       = "22_04-lts-gen2"

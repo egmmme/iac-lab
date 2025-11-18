@@ -3,22 +3,22 @@
 # ===================================================================
 
 variable "resource_group_name" {
-  description = "Nombre del grupo de recursos"
+  description = "Resource group name"
   type        = string
 }
 
 variable "location" {
-  description = "Ubicación de Azure"
+  description = "Azure location"
   type        = string
 }
 
 variable "nsg_name" {
-  description = "Nombre del Network Security Group"
+  description = "Network Security Group name"
   type        = string
 }
 
 variable "security_rules" {
-  description = "Lista de reglas de seguridad a aplicar"
+  description = "List of security rules to apply"
   type = list(object({
     name                       = string
     priority                   = number
@@ -37,7 +37,7 @@ variable "security_rules" {
       for rule in var.security_rules :
       contains(["Inbound", "Outbound"], rule.direction)
     ])
-    error_message = "La dirección debe ser 'Inbound' o 'Outbound'."
+    error_message = "Direction must be 'Inbound' or 'Outbound'."
   }
 
   validation {
@@ -45,7 +45,7 @@ variable "security_rules" {
       for rule in var.security_rules :
       contains(["Allow", "Deny"], rule.access)
     ])
-    error_message = "El acceso debe ser 'Allow' o 'Deny'."
+    error_message = "Access must be 'Allow' or 'Deny'."
   }
 
   validation {
@@ -53,12 +53,12 @@ variable "security_rules" {
       for rule in var.security_rules :
       rule.priority >= 100 && rule.priority <= 4096
     ])
-    error_message = "La prioridad debe estar entre 100 y 4096."
+    error_message = "Priority must be between 100 and 4096."
   }
 }
 
 variable "tags" {
-  description = "Tags para aplicar al NSG"
+  description = "Tags to apply to the NSG"
   type        = map(string)
   default     = {}
 }

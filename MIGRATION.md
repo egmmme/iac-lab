@@ -1,103 +1,103 @@
-# 🚀 Migración a GitHub Completada
+# 🚀 GitHub Migration Completed
 
-## ✅ Estado de la Migración
+## ✅ Migration Status
 
-Este repositorio ha sido migrado exitosamente de **Azure DevOps** a **GitHub**.
+This repository has been successfully migrated from **Azure DevOps** to **GitHub**.
 
-### Lo que se ha migrado:
+### What has been migrated:
 
-- ✅ **Código fuente completo**: Todo el historial de commits
-- ✅ **Ramas**: `main`, `feature/reusable-modules`
+- ✅ **Complete source code**: Full commit history
+- ✅ **Branches**: `main`, `feature/reusable-modules`
 - ✅ **Tags**: `1.0.0`, `1.1.0`
-- ✅ **CI/CD**: Pipeline migrado a GitHub Actions
-- ✅ **Documentación**: Todas las URLs actualizadas
+- ✅ **CI/CD**: Pipeline migrated to GitHub Actions
+- ✅ **Documentation**: All URLs updated
 
-### Configuración de Remotes
+### Remote Configuration
 
 ```bash
-# Remote principal (GitHub)
+# Primary remote (GitHub)
 origin → https://github.com/egmmme/iac-lab.git
 
 # Backup (Azure DevOps)
 azure-devops → https://dev.azure.com/egarciamadruga/iac-lab/_git/iac-lab
 ```
 
-## 🔧 Próximos Pasos
+## 🔧 Next Steps
 
-### 1. Configurar GitHub Secrets (REQUERIDO)
+### 1. Configure GitHub Secrets (REQUIRED)
 
-Para que el workflow de GitHub Actions funcione, debes configurar los secrets:
+For the GitHub Actions workflow to work, you must configure the secrets:
 
-1. Ve a: https://github.com/egmmme/iac-lab/settings/secrets/actions
-2. Crea estos 4 secrets:
-   - `AZURE_CLIENT_ID` → App ID del Service Principal
-   - `AZURE_CLIENT_SECRET` → Password del Service Principal
-   - `AZURE_TENANT_ID` → Tenant ID de Azure
-   - `AZURE_SUBSCRIPTION_ID` → ID de tu suscripción de Azure
+1. Go to: https://github.com/egmmme/iac-lab/settings/secrets/actions
+2. Create these 4 secrets:
+   - `AZURE_CLIENT_ID` → Service Principal App ID
+   - `AZURE_CLIENT_SECRET` → Service Principal Password
+   - `AZURE_TENANT_ID` → Azure Tenant ID
+   - `AZURE_SUBSCRIPTION_ID` → Your Azure subscription ID
 
-📚 **Guía completa**: Ver `docs/setup-guide.md` → Paso 2
+📚 **Complete guide**: See `docs/setup-guide.md` → Step 2
 
-### 2. Primera Ejecución del Workflow
+### 2. First Workflow Execution
 
-Después de configurar los secrets:
+After configuring the secrets:
 
 ```bash
-# El workflow ya se ejecutará automáticamente en cada push a main
-# O ejecuta manualmente desde:
+# The workflow will run automatically on each push to main
+# Or run manually from:
 # https://github.com/egmmme/iac-lab/actions
 ```
 
-### 3. Verificar el Workflow
+### 3. Verify the Workflow
 
-1. Ve a: https://github.com/egmmme/iac-lab/actions
-2. Verifica que el workflow **Terraform & Ansible CI/CD** aparezca
-3. Si hay errores, revisa que los secrets estén correctamente configurados
+1. Go to: https://github.com/egmmme/iac-lab/actions
+2. Verify that the **Terraform & Ansible CI/CD** workflow appears
+3. If there are errors, check that secrets are correctly configured
 
-## 📋 Comparación: Azure DevOps vs GitHub Actions
+## 📋 Comparison: Azure DevOps vs GitHub Actions
 
-| Característica               | Azure DevOps                    | GitHub Actions                             |
-| ---------------------------- | ------------------------------- | ------------------------------------------ |
-| **Archivo de configuración** | `azure-pipelines.yml`           | `.github/workflows/terraform-ansible.yml`  |
-| **Ubicación de secrets**     | Pipeline Variables              | Settings → Secrets and variables → Actions |
-| **URL del pipeline**         | Azure DevOps → Pipelines → Runs | https://github.com/egmmme/iac-lab/actions  |
-| **Trigger**                  | Push a main                     | Push a main + Pull Requests + Manual       |
+| Feature                | Azure DevOps                    | GitHub Actions                             |
+| ---------------------- | ------------------------------- | ------------------------------------------ |
+| **Configuration file** | `azure-pipelines.yml`           | `.github/workflows/terraform-ansible.yml`  |
+| **Secrets location**   | Pipeline Variables              | Settings → Secrets and variables → Actions |
+| **Pipeline URL**       | Azure DevOps → Pipelines → Runs | https://github.com/egmmme/iac-lab/actions  |
+| **Trigger**            | Push to main                    | Push to main + Pull Requests + Manual      |
 
-## 🗑️ Qué hacer con Azure DevOps
+## 🗑️ What to do with Azure DevOps
 
-### Opción A: Mantener como Backup (Recomendado)
+### Option A: Keep as Backup (Recommended)
 
-El remote `azure-devops` está configurado como backup. Puedes sincronizarlo ocasionalmente:
+The `azure-devops` remote is configured as backup. You can sync it occasionally:
 
 ```bash
-# Sincronizar cambios de GitHub a Azure DevOps
+# Sync changes from GitHub to Azure DevOps
 git push azure-devops main --all
 git push azure-devops --tags
 ```
 
-### Opción B: Archivar o Eliminar
+### Option B: Archive or Delete
 
-Si ya no necesitas Azure DevOps:
+If you no longer need Azure DevOps:
 
-1. **Archivar el proyecto**: Azure DevOps → Project Settings → Overview → Archive
-2. **O eliminar el remote local**:
+1. **Archive the project**: Azure DevOps → Project Settings → Overview → Archive
+2. **Or remove the local remote**:
    ```bash
    git remote remove azure-devops
    ```
 
-## 📁 Archivos Relacionados con la Migración
+## 📁 Migration-Related Files
 
-- `.github/workflows/terraform-ansible.yml` → Workflow de GitHub Actions (NUEVO)
-- `azure-pipelines.yml` → Pipeline de Azure DevOps (CONSERVADO para referencia)
-- `docs/setup-guide.md` → Guía actualizada con instrucciones de GitHub
+- `.github/workflows/terraform-ansible.yml` → GitHub Actions workflow (NEW)
+- `azure-pipelines.yml` → Azure DevOps pipeline (KEPT for reference)
+- `docs/setup-guide.md` → Updated guide with GitHub instructions
 
-## 🔗 Enlaces Importantes
+## 🔗 Important Links
 
-- **Repositorio GitHub**: https://github.com/egmmme/iac-lab
+- **GitHub Repository**: https://github.com/egmmme/iac-lab
 - **GitHub Actions**: https://github.com/egmmme/iac-lab/actions
 - **Issues**: https://github.com/egmmme/iac-lab/issues
-- **Documentación**: `docs/`
+- **Documentation**: `docs/`
 
 ---
 
-**Fecha de migración**: 2025
-**Commit de migración**: `42bd6e2`
+**Migration date**: 2025
+**Migration commit**: `42bd6e2`

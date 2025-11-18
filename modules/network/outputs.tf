@@ -3,31 +3,31 @@
 # ===================================================================
 
 output "vnet_id" {
-  description = "ID de la red virtual creada"
+  description = "Created virtual network ID"
   value       = azurerm_virtual_network.main.id
 }
 
 output "vnet_name" {
-  description = "Nombre de la red virtual"
+  description = "Virtual network name"
   value       = azurerm_virtual_network.main.name
 }
 
 output "subnet_id" {
-  description = "ID de la subred creada"
+  description = "Created subnet ID"
   value       = azurerm_subnet.main.id
 }
 
 output "subnet_name" {
-  description = "Nombre de la subred"
+  description = "Subnet name"
   value       = azurerm_subnet.main.name
 }
 
 output "public_ip_id" {
-  description = "ID de la IP pública"
+  description = "Public IP ID"
   value       = azurerm_public_ip.main.id
 }
 
 output "public_ip_address" {
-  description = "Dirección IP pública asignada"
+  description = "Assigned public IP address"
   value       = azurerm_public_ip.main.ip_address
 }

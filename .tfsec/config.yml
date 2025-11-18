@@ -1,43 +1,43 @@
 # ===================================================================
 # tfsec Configuration - Demo/Lab Environment
 # ===================================================================
-# Este archivo configura tfsec para excluir reglas específicas que son
-# aceptables en entornos de demo/lab pero NO en producción.
+# This file configures tfsec to exclude specific rules that are
+# acceptable in demo/lab environments but NOT in production.
 #
-# IMPORTANTE: Para producción, ELIMINAR este archivo y corregir las
-# vulnerabilidades reales (ver README-SECURITY.md)
+# IMPORTANT: For production, DELETE this file and fix the
+# actual vulnerabilities (see README-SECURITY.md)
 # ===================================================================
 
-# Excluir reglas específicas para demo/lab
+# Exclude specific rules for demo/lab
 exclude:
-  # Permitir ingress público para demo (HTTP/SSH)
+  # Allow public ingress for demo (HTTP/SSH)
   - azure-network-no-public-ingress
 
-  # Permitir SSH desde Internet para testing automatizado
+  # Allow SSH from Internet for automated testing
   - azure-network-ssh-blocked-from-internet
 
-# Configuración de severidad mínima
-# En producción, cambiar a: minimum_severity: MEDIUM
+# Minimum severity configuration
+# For production, change to: minimum_severity: MEDIUM
 minimum_severity: HIGH
 
-# Excluir directorios de tests
+# Exclude test directories
 exclude_paths:
   - .terraform/**
   - .terratest/**
   - tests/**
 
-# Formato de salida
+# Output format
 format: default
 # ===================================================================
-# Justificación de exclusiones:
+# Justification for exclusions:
 #
 # 1. azure-network-no-public-ingress
-#    - Contexto: Entorno de demo/lab requiere acceso HTTP público
-#    - Producción: Usar Azure Application Gateway + WAF
+#    - Context: Demo/lab environment requires public HTTP access
+#    - Production: Use Azure Application Gateway + WAF
 #
 # 2. azure-network-ssh-blocked-from-internet
-#    - Contexto: CI/CD pipeline requiere SSH para Ansible
-#    - Producción: Usar Azure Bastion o JIT Access
+#    - Context: CI/CD pipeline requires SSH for Ansible
+#    - Production: Use Azure Bastion or JIT Access
 #
-# Ver README-SECURITY.md para opciones de remediación
+# See README-SECURITY.md for remediation options
 # ===================================================================

@@ -1,125 +1,125 @@
-# 🔒 Consideraciones de Seguridad
+# 🔒 Security Considerations
 
-## ⚠️ Configuración Actual (Demo/Lab)
+## ⚠️ Current Configuration (Demo/Lab)
 
-Este proyecto está configurado para **entorno de demostración y CI/CD**. Las reglas de seguridad están deliberadamente abiertas para facilitar el testing automatizado.
+This project is configured for **demo environment and CI/CD**. Security rules are deliberately open to facilitate automated testing.
 
-### Reglas NSG Actuales
+### Current NSG Rules
 
 ```terraform
-# ❌ NO USAR EN PRODUCCIÓN
+# ❌ DO NOT USE IN PRODUCTION
 security_rules = [
   {
     name = "AllowSSH"
-    source_address_prefix = "*"  # Permite SSH desde CUALQUIER IP
+    source_address_prefix = "*"  # Allows SSH from ANY IP
   },
   {
     name = "AllowHTTP"
-    source_address_prefix = "*"  # Permite HTTP desde CUALQUIER IP
+    source_address_prefix = "*"  # Allows HTTP from ANY IP
   }
 ]
 ```
 
-## 🛡️ Recomendaciones para Producción
+## 🛡️ Production Recommendations
 
-### Opción 1: Restringir por IP (Recomendado para DevOps)
+### Option 1: Restrict by IP (Recommended for DevOps)
 
 ```terraform
-# ✅ PRODUCCIÓN: Restringir SSH a IPs corporativas
+# ✅ PRODUCTION: Restrict SSH to corporate IPs
 security_rules = [
   {
     name = "AllowSSH"
-    source_address_prefix = "203.0.113.0/24"  # IP de oficina/VPN
-    # O múltiples IPs:
+    source_address_prefix = "203.0.113.0/24"  # Office/VPN IP
+    # Or multiple IPs:
     # source_address_prefixes = ["203.0.113.0/24", "198.51.100.0/24"]
   }
 ]
 ```
 
-### Opción 2: Azure Bastion (Mejor práctica)
+### Option 2: Azure Bastion (Best Practice)
 
 ```terraform
-# ✅ MEJOR PRÁCTICA: Eliminar SSH público, usar Azure Bastion
-# - Sin IP pública en VM
-# - Acceso SSH a través de Azure Portal
-# - Auditoría completa de accesos
-# - Sin exposición a Internet
+# ✅ BEST PRACTICE: Remove public SSH, use Azure Bastion
+# - No public IP on VM
+# - SSH access through Azure Portal
+# - Complete access auditing
+# - No Internet exposure
 
-# NO incluir regla AllowSSH
-# Usar Azure Bastion para acceso administrativo
+# DO NOT include AllowSSH rule
+# Use Azure Bastion for administrative access
 ```
 
-### Opción 3: Just-In-Time Access (JIT)
+### Option 3: Just-In-Time Access (JIT)
 
 ```terraform
-# ✅ ALTERNATIVA: Microsoft Defender for Cloud JIT
-# - SSH bloqueado por defecto
-# - Acceso temporal bajo demanda (1-24h)
-# - Requiere aprobación
-# - Logs en Azure Security Center
+# ✅ ALTERNATIVE: Microsoft Defender for Cloud JIT
+# - SSH blocked by default
+# - Temporary access on demand (1-24h)
+# - Requires approval
+# - Logs in Azure Security Center
 ```
 
-## 📋 Checklist de Seguridad Pre-Producción
+## 📋 Pre-Production Security Checklist
 
-- [ ] Eliminar `source_address_prefix = "*"` de reglas SSH/RDP
-- [ ] Implementar Azure Bastion o JIT Access
-- [ ] Habilitar Network Watcher y NSG Flow Logs
-- [ ] Configurar Azure Security Center (Defender for Cloud)
-- [ ] Implementar Azure Firewall para tráfico saliente
-- [ ] Habilitar Microsoft Defender for Servers
-- [ ] Configurar alertas de seguridad en Azure Monitor
-- [ ] Revisar y aplicar Azure Policy para NSG
+- [ ] Remove `source_address_prefix = "*"` from SSH/RDP rules
+- [ ] Implement Azure Bastion or JIT Access
+- [ ] Enable Network Watcher and NSG Flow Logs
+- [ ] Configure Azure Security Center (Defender for Cloud)
+- [ ] Implement Azure Firewall for outbound traffic
+- [ ] Enable Microsoft Defender for Servers
+- [ ] Configure security alerts in Azure Monitor
+- [ ] Review and apply Azure Policy for NSG
 
-## 🧪 Supresión de Alertas tfsec
+## 🧪 tfsec Alert Suppression
 
-Para este proyecto de **demo/lab**, las alertas de tfsec están suprimidas con:
+For this **demo/lab** project, tfsec alerts are suppressed with:
 
 ```terraform
 # tfsec:ignore:azure-network-no-public-ingress
 # tfsec:ignore:azure-network-ssh-blocked-from-internet
 ```
 
-**IMPORTANTE**: En producción, **ELIMINAR** estos comentarios y corregir las vulnerabilidades reales.
+**IMPORTANT**: In production, **REMOVE** these comments and fix the actual vulnerabilities.
 
-## 📚 Referencias
+## 📚 References
 
 - [Azure Network Security Best Practices](https://learn.microsoft.com/azure/security/fundamentals/network-best-practices)
 - [Azure Bastion Documentation](https://learn.microsoft.com/azure/bastion/bastion-overview)
 - [Just-In-Time VM Access](https://learn.microsoft.com/azure/defender-for-cloud/just-in-time-access-usage)
 - [NSG Security Rules](https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview)
 
-## 🎯 Proceso de Remediación
+## 🎯 Remediation Process
 
-### Para migrar a producción:
+### To migrate to production:
 
-1. **Crear variable para IPs permitidas**:
+1. **Create variable for allowed IPs**:
 
 ```terraform
 variable "allowed_ssh_ips" {
-  description = "IPs permitidas para SSH"
+  description = "Allowed IPs for SSH"
   type        = list(string)
-  default     = []  # Vacío = bloquear SSH
+  default     = []  # Empty = block SSH
 }
 ```
 
-2. **Actualizar regla SSH**:
+2. **Update SSH rule**:
 
 ```terraform
 {
   name = "AllowSSH"
   source_address_prefixes = var.allowed_ssh_ips
-  # Solo crea regla si hay IPs permitidas
+  # Only create rule if there are allowed IPs
   count = length(var.allowed_ssh_ips) > 0 ? 1 : 0
 }
 ```
 
-3. **Ejecutar tfsec sin ignorar**:
+3. **Run tfsec without ignoring**:
 
 ```bash
 tfsec . --minimum-severity MEDIUM
 ```
 
-4. **Validar con Azure Policy**:
+4. **Validate with Azure Policy**:
 
 ```bash
 az policy assignment create \

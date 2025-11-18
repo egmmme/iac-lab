@@ -1,7 +1,7 @@
 # ===================================================================
-# VARIABLES - Configuración parametrizable
+# VARIABLES - Parameterized configuration
 # ===================================================================
-# Buena práctica: Separar variables en archivo dedicado
+# Best practice: Separate variables in dedicated file
 # ===================================================================
 
 variable "ssh_public_key" {
@@ -11,42 +11,42 @@ variable "ssh_public_key" {
 }
 
 variable "resource_group_name" {
-  description = "Nombre del grupo de recursos"
+  description = "Azure resource group name"
   type        = string
   default     = "rg-terraform-ansible-demo"
 }
 
 variable "location" {
-  description = "Región de Azure para los recursos"
+  description = "Azure region for resources"
   type        = string
   default     = "West Europe"
 }
 
 variable "vm_size" {
-  description = "Tamaño de la VM"
+  description = "VM size"
   type        = string
   default     = "Standard_B1s"
 }
 
 variable "admin_username" {
-  description = "Usuario administrador de la VM"
+  description = "VM administrator username"
   type        = string
   default     = "azureuser"
 }
 
 variable "environment" {
-  description = "Ambiente de despliegue"
+  description = "Deployment environment"
   type        = string
   default     = "demo"
 
   validation {
     condition     = contains(["dev", "demo", "prod"], var.environment)
-    error_message = "Environment debe ser: dev, demo o prod"
+    error_message = "Environment must be: dev, demo, or prod"
   }
 }
 
 variable "tags" {
-  description = "Tags comunes para todos los recursos"
+  description = "Common tags for all resources"
   type        = map(string)
   default = {
     proyecto    = "terraform-ansible-demo"

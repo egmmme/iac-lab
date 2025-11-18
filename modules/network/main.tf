@@ -1,6 +1,6 @@
 # ===================================================================
-# Módulo: Network
-# Propósito: Crear infraestructura de red (VNet, Subnet, Public IP)
+# Module: Network
+# Purpose: Create network infrastructure (VNet, Subnet, Public IP)
 # ===================================================================
 
 terraform {

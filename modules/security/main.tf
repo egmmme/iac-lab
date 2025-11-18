@@ -1,6 +1,6 @@
 # ===================================================================
-# Módulo: Security
-# Propósito: Crear Network Security Group con reglas de seguridad
+# Module: Security
+# Purpose: Create Network Security Group with security rules
 # ===================================================================
 
 terraform {
@@ -22,9 +22,9 @@ resource "azurerm_network_security_group" "main" {
 
 # tfsec:ignore:azure-network-no-public-ingress
 # tfsec:ignore:azure-network-ssh-blocked-from-internet
-# Justificación: Este es un entorno de demo/lab para CI/CD
-# En PRODUCCIÓN: Reemplazar source_address_prefix="*" con IPs específicas
-# Ejemplo: source_address_prefix = var.allowed_ip_ranges
+# Justification: This is a demo/lab environment for CI/CD
+# For PRODUCTION: Replace source_address_prefix="*" with specific IPs
+# Example: source_address_prefix = var.allowed_ip_ranges
 resource "azurerm_network_security_rule" "rules" {
   for_each = { for rule in var.security_rules : rule.name => rule }
 

@@ -3,128 +3,128 @@
 # ===================================================================
 
 variable "resource_group_name" {
-  description = "Nombre del grupo de recursos"
+  description = "Resource group name"
   type        = string
 }
 
 variable "location" {
-  description = "Ubicación de Azure"
+  description = "Azure location"
   type        = string
 }
 
 variable "vm_name" {
-  description = "Nombre de la máquina virtual"
+  description = "Virtual machine name"
   type        = string
 }
 
 variable "vm_size" {
-  description = "Tamaño de la VM (SKU)"
+  description = "VM size (SKU)"
   type        = string
   default     = "Standard_B1s"
 
   validation {
     condition     = can(regex("^Standard_", var.vm_size))
-    error_message = "El tamaño de VM debe comenzar con 'Standard_'."
+    error_message = "VM size must start with 'Standard_'."
   }
 }
 
 variable "admin_username" {
-  description = "Nombre de usuario administrador"
+  description = "Administrator username"
   type        = string
   default     = "azureuser"
 
   validation {
     condition     = length(var.admin_username) >= 1 && length(var.admin_username) <= 64
-    error_message = "El nombre de usuario debe tener entre 1 y 64 caracteres."
+    error_message = "Username must be between 1 and 64 characters."
   }
 }
 
 variable "ssh_public_key" {
-  description = "Clave SSH pública para autenticación"
+  description = "SSH public key for authentication"
   type        = string
   sensitive   = true
 
   validation {
     condition     = can(regex("^ssh-rsa|^ssh-ed25519|^ecdsa-sha2-nistp256", var.ssh_public_key))
-    error_message = "Debe ser una clave SSH pública válida."
+    error_message = "Must be a valid SSH public key."
   }
 }
 
 variable "disable_password_authentication" {
-  description = "Deshabilitar autenticación por contraseña"
+  description = "Disable password authentication"
   type        = bool
   default     = true
 }
 
 variable "nic_name" {
-  description = "Nombre de la interfaz de red"
+  description = "Network interface name"
   type        = string
 }
 
 variable "subnet_id" {
-  description = "ID de la subred donde se conectará la NIC"
+  description = "Subnet ID where the NIC will be connected"
   type        = string
 }
 
 variable "public_ip_id" {
-  description = "ID de la IP pública a asociar (opcional)"
+  description = "Public IP ID to associate (optional)"
   type        = string
   default     = null
 }
 
 variable "nsg_id" {
-  description = "ID del Network Security Group a asociar"
+  description = "Network Security Group ID to associate"
   type        = string
 }
 
 variable "os_disk_caching" {
-  description = "Tipo de caché para el disco del SO"
+  description = "OS disk cache type"
   type        = string
   default     = "ReadWrite"
 
   validation {
     condition     = contains(["None", "ReadOnly", "ReadWrite"], var.os_disk_caching)
-    error_message = "El caché debe ser 'None', 'ReadOnly' o 'ReadWrite'."
+    error_message = "Cache must be 'None', 'ReadOnly', or 'ReadWrite'."
   }
 }
 
 variable "os_disk_storage_account_type" {
-  description = "Tipo de cuenta de almacenamiento para el disco del SO"
+  description = "OS disk storage account type"
   type        = string
   default     = "Standard_LRS"
 
   validation {
     condition     = contains(["Standard_LRS", "StandardSSD_LRS", "Premium_LRS"], var.os_disk_storage_account_type)
-    error_message = "Tipo de almacenamiento no válido."
+    error_message = "Invalid storage type."
   }
 }
 
 variable "image_publisher" {
-  description = "Publisher de la imagen del SO"
+  description = "OS image publisher"
   type        = string
   default     = "Canonical"
 }
 
 variable "image_offer" {
-  description = "Offer de la imagen del SO"
+  description = "OS image offer"
   type        = string
   default     = "0001-com-ubuntu-server-jammy"
 }
 
 variable "image_sku" {
-  description = "SKU de la imagen del SO"
+  description = "OS image SKU"
   type        = string
   default     = "22_04-lts-gen2"
 }
 
 variable "image_version" {
-  description = "Versión de la imagen del SO"
+  description = "OS image version"
   type        = string
   default     = "latest"
 }
 
 variable "tags" {
-  description = "Tags para aplicar a los recursos de compute"
+  description = "Tags to apply to compute resources"
   type        = map(string)
   default     = {}
 }

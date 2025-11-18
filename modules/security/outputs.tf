@@ -3,17 +3,17 @@
 # ===================================================================
 
 output "nsg_id" {
-  description = "ID del Network Security Group"
+  description = "Network Security Group ID"
   value       = azurerm_network_security_group.main.id
 }
 
 output "nsg_name" {
-  description = "Nombre del Network Security Group"
+  description = "Network Security Group name"
   value       = azurerm_network_security_group.main.name
 }
 
 output "security_rules" {
-  description = "Reglas de seguridad configuradas"
+  description = "Configured security rules"
   value = {
     for rule in var.security_rules :
     rule.name => {
