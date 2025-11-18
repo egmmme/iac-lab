@@ -353,7 +353,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ssh-keys
-          path: ~/.ssh/
+          path: |
+            ~/.ssh/id_rsa
+            ~/.ssh/id_rsa.pub
+          retention-days: 1
 
   configure-services:
     name: 🎯 Configure with Ansible
@@ -377,10 +380,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ssh-keys
-          path: ~/.ssh/
+          path: /tmp/ssh-keys/
 
       - name: Set SSH Permissions
         run: |
+          mkdir -p ~/.ssh
+          cp /tmp/ssh-keys/id_rsa ~/.ssh/id_rsa
+          cp /tmp/ssh-keys/id_rsa.pub ~/.ssh/id_rsa.pub
           chmod 600 ~/.ssh/id_rsa
           chmod 644 ~/.ssh/id_rsa.pub
 
