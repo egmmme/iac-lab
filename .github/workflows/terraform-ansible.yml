@@ -145,6 +145,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Make scripts executable
+        run: |
+          find .github/scripts -type f -name "*.sh" -exec chmod +x {} +
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -202,6 +206,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Make scripts executable
+        run: |
+          find .github/scripts -type f -name "*.sh" -exec chmod +x {} +
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -242,6 +250,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Make scripts executable
+        run: |
+          find .github/scripts -type f -name "*.sh" -exec chmod +x {} +
+
       - name: Test HTTP Status
         env:
           VM_IP: ${{ needs.deploy-infrastructure.outputs.vm_public_ip }}
@@ -257,6 +269,10 @@ jobs:
     if: always() && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: |
+          find .github/scripts -type f -name "*.sh" -exec chmod +x {} +
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
