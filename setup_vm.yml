@@ -24,37 +24,13 @@
         state: started
         enabled: yes
 
-    - name: Create custom index page
+    - name: Deploy podcaster web app
       ansible.builtin.copy:
-        content: |
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>Demo Terraform + Ansible</title>
-              <style>
-                  body { font-family: Arial; margin: 50px; background: #f0f0f0; }
-                  .container { background: white; padding: 30px; border-radius: 8px; }
-                  h1 { color: #0078D4; }
-                  .tech { background: #e8e8e8; padding: 10px; margin: 10px 0; border-radius: 4px; }
-              </style>
-          </head>
-          <body>
-              <div class="container">
-                  <h1>Deployed with Terraform + Ansible!</h1>
-                  <div class="tech">
-                      <strong>Infrastructure:</strong> Terraform (IaC)
-                      <br>Created: VM, VNet, Public IP, NSG
-                  </div>
-                  <div class="tech">
-                      <strong>Configuration:</strong> Ansible
-                      <br>Installed: Nginx, custom page
-                  </div>
-                  <p>Pipeline completed successfully</p>
-              </div>
-          </body>
-          </html>
-        dest: /var/www/html/index.html
-        mode: "0644"
+        src: /tmp/podcaster-dist/
+        dest: /var/www/html/
+        mode: preserve
+        remote_src: no
+      become: yes
 
     - name: Verify Nginx is running
       ansible.builtin.systemd:
