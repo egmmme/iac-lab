@@ -43,11 +43,11 @@ fi
 # ==============================================================================
 # Test 3: Content Check
 # ==============================================================================
-echo "Test 3: Verify content..."
-if curl -s "$URL" | grep -i "Deployed with Terraform"; then
-  echo "✅ Content correct"
+echo "Test 3: Verify Podcaster app..."
+if curl -s "$URL" | grep -i "<title>Podcaster</title>"; then
+  echo "✅ Podcaster app deployed"
 else
-  echo "❌ Content not found"
+  echo "❌ Podcaster app not found"
   EXIT_CODE=1
 fi
 
