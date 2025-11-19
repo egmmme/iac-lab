@@ -256,6 +256,12 @@ jobs:
           name: podcaster-dist
           path: /tmp/podcaster-dist
 
+      - name: Verify artifact downloaded
+        run: |
+          echo "📦 Checking downloaded artifact..."
+          ls -laR /tmp/podcaster-dist
+          echo "✅ Artifact contents listed"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

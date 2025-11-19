@@ -24,6 +24,16 @@
         state: started
         enabled: yes
 
+    - name: Check local artifact exists
+      ansible.builtin.stat:
+        path: /tmp/podcaster-dist
+      delegate_to: localhost
+      register: artifact_check
+
+    - name: Display artifact check
+      ansible.builtin.debug:
+        msg: "Artifact exists: {{ artifact_check.stat.exists }}"
+
     - name: Deploy podcaster web app
       ansible.builtin.copy:
         src: /tmp/podcaster-dist/
@@ -31,6 +41,15 @@
         mode: preserve
         remote_src: no
       become: yes
+
+    - name: List deployed files
+      ansible.builtin.command: ls -la /var/www/html/
+      register: deployed_files
+      changed_when: false
+
+    - name: Display deployed files
+      ansible.builtin.debug:
+        msg: "{{ deployed_files.stdout_lines }}"
 
     - name: Verify Nginx is running
       ansible.builtin.systemd:
